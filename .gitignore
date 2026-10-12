@@ -8,3 +8,6 @@ server/web/*.tsbuildinfo
 
 # release artifacts
 /dist/
+
+# server runtime data
+/server/server_data/

@@ -18,6 +18,13 @@ var known = map[string][]string{
 		"save_every_n_epochs", "seed", "max_token_length", "xformers",
 		"cache_latents", "shuffle_caption", "keep_tokens", "min_snr_gamma",
 	},
+	"next-integrated": {
+		"model_type", "pretrained_model", "train_data_dir", "output_name",
+		"resolution", "batch_size", "max_steps", "learning_rate", "optimizer",
+		"network_dim", "network_alpha", "seed", "weight_dtype",
+		"train_text_encoder", "gradient_checkpointing", "max_grad_norm",
+		"tokenizer", "tokenizer1", "tokenizer2", "vae",
+	},
 }
 
 func Supported(engine string) bool {
@@ -33,12 +40,30 @@ func Render(engine, version string, p Params, jobID string) (string, error) {
 	var b strings.Builder
 	b.WriteString("# rendered by next-trainer server\n")
 	b.WriteString("# engine: " + engine + " " + version + "\n")
-	b.WriteString("output_dir = \"output\"\n")
-	b.WriteString("logging_dir = \"logs\"\n")
-	b.WriteString("job_id = " + strconv.Quote(jobID) + "\n")
+
+	// next-integrated 的 train.py 按模型 section（[sdxl]/[sd15]）读取配置
+	skip := map[string]bool{}
+	if engine == "next-integrated" {
+		modelType, _ := p["model_type"].(string)
+		if modelType == "" {
+			modelType = "sdxl"
+		}
+		if modelType != "sdxl" && modelType != "sd15" {
+			return "", fmt.Errorf("engines: unsupported model_type %q", modelType)
+		}
+		b.WriteString("[" + modelType + "]\n")
+		skip["model_type"] = true
+	} else {
+		b.WriteString("output_dir = \"output\"\n")
+		b.WriteString("logging_dir = \"logs\"\n")
+		b.WriteString("job_id = " + strconv.Quote(jobID) + "\n")
+	}
 
 	seen := map[string]bool{}
 	write := func(k string, v any) {
+		if skip[k] {
+			return
+		}
 		seen[k] = true
 		b.WriteString(k + " = " + tomlValue(v) + "\n")
 	}

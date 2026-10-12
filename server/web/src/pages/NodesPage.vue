@@ -3,31 +3,35 @@ import { ElMessage } from "element-plus"
 import { computed, onMounted, onUnmounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
 
-import { adminApi, nodesApi } from "../api/resources"
-import type { Node } from "../api/types"
+import { adminApi, nodesApi, poolsApi } from "../api/resources"
+import type { Node, Pool } from "../api/types"
 import { useAuthStore } from "../stores/auth"
 import { formatTime } from "../utils/format"
 
 const { t } = useI18n()
 const auth = useAuthStore()
 const nodes = ref<Node[]>([])
+const pools = ref<Pool[]>([])
 const loading = ref(false)
 const regOpen = ref(false)
 const isAdmin = computed(() => auth.user?.role === "admin")
+
+const poolName = computed(() => {
+  const m = new Map<string, string>()
+  for (const p of pools.value) m.set(p.pool_id, p.name)
+  return (id: string) => m.get(id) ?? id.slice(0, 8)
+})
 let timer: ReturnType<typeof setInterval> | undefined
 
 function gpuCount(n: Node): number {
-  try {
-    return (JSON.parse(n.gpus) as unknown[]).length
-  } catch {
-    return 0
-  }
+  return n.gpus?.length ?? 0
 }
 
 async function refresh(silent = false) {
   if (!silent) loading.value = true
   try {
     nodes.value = await nodesApi.list()
+    pools.value = await poolsApi.list()
     if (isAdmin.value) {
       regOpen.value = (await adminApi.getRegistration()).open
     }
@@ -84,7 +88,7 @@ onUnmounted(() => timer && clearInterval(timer))
       </el-table-column>
       <el-table-column :label="t('nodes.description')" prop="description" show-overflow-tooltip />
       <el-table-column :label="t('nodes.pools')" width="140">
-        <template #default="{ row }">{{ row.pools.length }}</template>
+        <template #default="{ row }">{{ (row.pools ?? []).map(poolName).join(", ") }}</template>
       </el-table-column>
       <el-table-column :label="t('nodes.agentVersion')" prop="agent_version" width="120" />
       <el-table-column :label="t('nodes.lastSeen')" width="170">

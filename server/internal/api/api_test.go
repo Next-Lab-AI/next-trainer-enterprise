@@ -186,7 +186,7 @@ func TestPoolAndJobFlow(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create pool: %d", rec.Code)
 	}
-	var pool store.Pool
+	var pool poolOut
 	json.Unmarshal(rec.Body.Bytes(), &pool)
 
 	rec = fx.do(t, "POST", "/api/users", adminTok, map[string]string{"username": "u1", "password": "pw1"})
@@ -208,14 +208,14 @@ func TestPoolAndJobFlow(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("submit: %d %s", rec.Code, rec.Body)
 	}
-	var job store.Job
+	var job jobOut
 	json.Unmarshal(rec.Body.Bytes(), &job)
 	if job.Status != store.JobStatusQueued {
 		t.Fatalf("job: %+v", job)
 	}
 
 	rec = fx.do(t, "GET", "/api/jobs", userTok, nil)
-	var list []store.Job
+	var list []jobOut
 	json.Unmarshal(rec.Body.Bytes(), &list)
 	if len(list) != 1 {
 		t.Fatalf("list: %d", len(list))
@@ -252,14 +252,14 @@ func TestDatasetUploadDownload(t *testing.T) {
 		body, _ := io.ReadAll(resp.Body)
 		t.Fatalf("upload: %d %s", resp.StatusCode, body)
 	}
-	var d store.Dataset
+	var d datasetOut
 	json.NewDecoder(resp.Body).Decode(&d)
 	if d.SHA256 == "" || d.SizeBytes != int64(len("fake-dataset-content")) {
 		t.Fatalf("dataset: %+v", d)
 	}
 
 	rec := fx.do(t, "GET", "/api/datasets", adminTok, nil)
-	var list []store.Dataset
+	var list []datasetOut
 	json.Unmarshal(rec.Body.Bytes(), &list)
 	if len(list) != 1 {
 		t.Fatalf("list: %d", len(list))

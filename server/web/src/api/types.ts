@@ -13,14 +13,22 @@ export interface Node {
   description: string
   agent_version: string
   protocol_version: string
-  labels: string
-  gpus: string
+  labels: Record<string, string> | null
+  gpus: GpuInfo[]
   status: string
   first_seen: number
   last_seen: number
   online: boolean
   pools: string[]
-  base_envs?: string
+  base_envs?: BaseEnv[]
+  engines: EngineInfo[]
+}
+
+export interface EngineInfo {
+  name: string
+  version: string
+  capabilities?: string[]
+  ready: boolean
 }
 
 export interface GpuInfo {
@@ -42,6 +50,7 @@ export interface Pool {
   name: string
   auto_created: boolean
   created_at: number
+  nodes: string[]
 }
 
 export interface Job {

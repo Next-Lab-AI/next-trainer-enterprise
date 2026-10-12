@@ -27,30 +27,11 @@ const provisionForm = reactive({
 
 const id = computed(() => String(route.params.id))
 
-const gpus = computed<GpuInfo[]>(() => {
-  try {
-    return JSON.parse(node.value?.gpus ?? "[]")
-  } catch {
-    return []
-  }
-})
+const gpus = computed<GpuInfo[]>(() => node.value?.gpus ?? [])
 
-const baseEnvs = computed<BaseEnv[]>(() => {
-  try {
-    const raw = node.value?.base_envs
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    return []
-  }
-})
+const baseEnvs = computed<BaseEnv[]>(() => node.value?.base_envs ?? [])
 
-const labels = computed<Record<string, string>>(() => {
-  try {
-    return JSON.parse(node.value?.labels ?? "{}")
-  } catch {
-    return {}
-  }
-})
+const labels = computed<Record<string, string>>(() => node.value?.labels ?? {})
 
 async function refresh() {
   try {

@@ -95,7 +95,7 @@ func (s *Server) handleCreatePool(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, statusOf(err), err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, p)
+	writeJSON(w, http.StatusCreated, s.poolDTO(r, p))
 }
 
 func (s *Server) handleDeletePool(w http.ResponseWriter, r *http.Request) {

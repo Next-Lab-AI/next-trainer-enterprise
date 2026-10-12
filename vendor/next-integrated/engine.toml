@@ -6,5 +6,5 @@ min_gpus = 1
 max_gpus = 1
 env_spec = "pyproject.toml"
 python_version = "3.13"
-capabilities = ["sdxl"]
+capabilities = ["sdxl", "sd15"]
 kind = "train"

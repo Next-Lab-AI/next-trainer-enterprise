@@ -54,6 +54,7 @@ type Hub struct {
 	tokens   map[string]string
 	seen     map[string]map[int64]struct{}
 	baseEnvs map[string][]protocol.BaseEnv
+	engines  map[string][]protocol.EngineInfo
 	hd       Handler
 }
 
@@ -73,6 +74,7 @@ func NewHub(reg *registry.Registry, st store.Store, cfg Config) *Hub {
 		tokens:   make(map[string]string),
 		seen:     make(map[string]map[int64]struct{}),
 		baseEnvs: make(map[string][]protocol.BaseEnv),
+		engines:  make(map[string][]protocol.EngineInfo),
 	}
 }
 
@@ -239,6 +241,9 @@ func (h *Hub) route(nodeID string, f protocol.Frame) {
 		if err := h.reg.Touch(context.Background(), nodeID); err != nil {
 			h.cfg.Logger.Warn("touch", "err", err)
 		}
+		h.mu.Lock()
+		h.engines[nodeID] = hb.Engines
+		h.mu.Unlock()
 		if hd != nil {
 			hd.OnHeartbeat(nodeID, hb)
 		}
@@ -332,6 +337,12 @@ func (h *Hub) BaseEnvs(nodeID string) []protocol.BaseEnv {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.baseEnvs[nodeID]
+}
+
+func (h *Hub) Engines(nodeID string) []protocol.EngineInfo {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.engines[nodeID]
 }
 
 func (h *Hub) AuthenticateSession(token string) (string, bool) {
