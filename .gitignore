@@ -5,3 +5,6 @@ server/web/dist/assets/
 server/web/dist/vite.svg
 server/web/node_modules/
 server/web/*.tsbuildinfo
+
+# release artifacts
+/dist/
