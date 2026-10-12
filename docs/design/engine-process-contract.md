@@ -29,8 +29,9 @@ capabilities = ["sdxl", "flux", "anima", ...]
 
 ### 2. 输入：配置文件
 
-- agent 收到 `job.start` 后渲染任务配置（TOML），写入任务目录，
-  以 `--config <path>` 传给引擎入口。
+- **server 渲染**：任务 TOML 由 server 按引擎模板渲染完整，随 `job.start`
+  下发；agent 只做路径白名单校验（禁止逃出 `<agent_root>`），
+  不做模板渲染——审计集中在 server，agent 零模板逻辑。
 - 引擎不得从环境变量/隐式路径读取任务级配置（可移植性 + 可审计）。
 
 ### 3. 输出：结构化 stdout（JSON Lines）
@@ -68,6 +69,32 @@ capabilities = ["sdxl", "flux", "anima", ...]
 ├── output/              # checkpoint / 产物
 └── logs/
 ```
+
+## 附录 A：engine.toml 字段定义
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| name | string | ✅ | 引擎标识（与 vendor 目录名一致） |
+| version | string | ✅ | 快照版本/pin 说明 |
+| entry | string | ✅ | 入口脚本（相对引擎根），通常是 wrapper |
+| accelerator | string | ✅ | `none` / `accelerate` / `torchrun` |
+| min_gpus / max_gpus | int | ✅ | 卡数能力声明，调度匹配依据 |
+| env_spec | string | ✅ | requirements/constraints 文件路径（provision 依据） |
+| capabilities | array[string] | ❌ | 能力标签（sdxl/flux/anima/video/tagging…），web 筛选用 |
+| kind | string | ✅ | `train` / `inference`（打标/翻译属 inference，同契约） |
+
+## 附录 B：JSONL 输出帧定义
+
+每帧一行 JSON，stdout 承载；`type` 枚举：
+
+| type | 字段 | 说明 |
+|---|---|---|
+| `progress` | step, total, loss?, lr?, elapsed_s | 训练进度；inference 引擎用 processed/total |
+| `artifact` | kind, path | 产物登记（checkpoint / tags / …），path 相对任务目录 |
+| `log` | level, msg | 人类可读日志（stderr 也由 agent 归一化为此类） |
+| `error` | code, msg | 致命错误，必须是退出前最后一帧 |
+
+未知帧类型 agent 原样转发为 `log`（前向兼容）。
 
 ## 各引擎改造量预估
 

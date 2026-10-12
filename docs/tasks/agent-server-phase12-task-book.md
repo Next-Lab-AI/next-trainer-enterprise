@@ -287,7 +287,9 @@ server 排前（第 2 步先于 agent 主体），保证 agent 联调有真实�
    两个池的任务均可调度到该节点（按实际空闲 GPU）。
 5. web 上传数据集（local backend）→ 提交引用该数据集的 sd-scripts
    单卡任务 → agent 认证下载并校验 sha256 → 拉起 → 日志实时回流 web。
-6. SIGTERM 优雅停止；杀 agent 重启后节点恢复在线，任务状态与事实一致。
+6. SIGTERM 优雅停止；admin 手动抢占运行中任务 → 当前 step 边界 checkpoint
+   后退出、事件 job.preempted、GPU 释放给池队列下一个任务；
+   杀 agent 重启后节点恢复在线，任务状态与事实一致。
 7. 断网 5 分钟恢复：缓冲内事件补传，溢出部分有 gap 标记。
 8. 日志统一抽查：agent 自身日志、训练 stdout、server 日志均为同一 JSONL
    schema（ts/level/source/node_id/job_id/msg），`jobs/<job_id>/stdout.jsonl`

@@ -49,8 +49,9 @@ server → agent: Welcome { node_id, session_token, server_time,
 | 方向 | 类型 | 说明 |
 |---|---|---|
 | s→a | `provision` | 环境安装指令（admin 运维操作触发：引擎、版本、依赖约束） |
+| s→a | `env.gc` | 环境回收指令（零引用且超龄的 venv） |
 | s→a | `job.start` | 下发任务（engine、渲染后 TOML 配置、`assets[]` 资产清单、资源需求：GPU 数/型号） |
-| s→a | `job.stop` / `job.kill` | 优雅停止 / 强杀 |
+| s→a | `job.stop` / `job.kill` | 优雅停止 / 强杀；`job.stop` 带 `preempt` 标记时为抢占（admin 手动触发，语义见 job-lifecycle 设计） |
 | a→s | `event` | 状态事件流：任务等待（依赖未就绪）/开始/进度/结束/失败/抢占；携带 GPU 分配与生命周期信息，用量流水由此派生 |
 | a→s | `metrics` | GPU 逐卡采样批量上报（gpu_index 维度，字段厂商中性，见 metering 设计） |
 | a→s | `log` | 训练日志流（帧格式 = 统一 JSONL 日志 schema，与节点落盘文件同一份格式，Filebeat/Logstash 可直接采集） |
@@ -70,7 +71,8 @@ server → agent: Welcome { node_id, session_token, server_time,
   `https://`（仅 server 自身数据集分发端点，session_token 鉴权）；
   S3 凭证配置在节点本地，不经 server 流转。
 - 消息 schema 带 `protocol_version`，首版即预留字段扩展规则（新增字段 optional，
-  不删不改已有字段语义）。字段级定义见 `docs/api/protocol-v1.md`（随实现维护）。
+  不删不改已有字段语义）。**字段级定义与版本兼容矩阵见
+  `docs/api/protocol-v1.md`**（协议的唯一权威，与 `pkg/protocol` 对齐维护）。
 
 ## 安全
 
