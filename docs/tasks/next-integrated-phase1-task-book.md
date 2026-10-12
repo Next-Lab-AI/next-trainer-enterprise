@@ -7,7 +7,7 @@
 - Last updated: 2026-10-12 Asia/Shanghai
 - Canonical progress file: `docs/tasks/next-integrated-phase1-task-book.md`
 - Current branch: `feat/next-integrated-bootstrap`
-- Current active step: Step 3 已完成（对照项后补），Step 4 待开工
+- Current active step: Step 4 已完成，Step 5 待开工
 - Design docs:
   - `docs/design/next-integrated.md`（总设计，钉版基线在其中）
   - `docs/design/engine-process-contract.md`（契约权威定义）
@@ -108,12 +108,30 @@ LoRA 网络，**SDXL LoRA 单卡 smoke 跑通**——验证"统一核心库 + ad
 - 遗留：loss 曲线与 vendor/sd-scripts 同配置对照**另起任务排期**
   （vendor 无现成环境；且数据集预处理不同，对照只能看趋势）。
 
-### Step 4: SD1.5 adapter
+### Step 4: SD1.5 adapter ✅（2026-10-12 完成）
 
 - Outputs: `adapters/sd15/`（与 SDXL 同 pipeline 收敛，顺手做）。
 - Validation: 单卡 SD1.5 LoRA smoke 跑通。
 - 说明：Anima-DiT 是当前口径第三个模型，但吸收涉及 transformers 5.5
   兼容排查，独立排期在本期之后（见设计文档吸收顺序）。
+- 完成情况：
+  - `adapters/sd15/` 落地，接口与 sdxl 一致（Bundle/forward 同签名，
+    Bundle.text_encoders 统一为 list）；train.py 训练回路收敛为
+    模型无关 `run_lora(section, adapter)`，dispatch [sdxl]/[sd15]；
+  - 数学与种子 train_network.py SD1.5 主回路逐步对应（eps 预测 /
+    DDPM scaled_linear / VAE 0.18215 / padding 到 max_length 后
+    text_encoder(input_ids)[0]）；
+  - 基座模型从 ModelScope 拉取（AI-ModelScope/stable-diffusion-v1-5
+    v1-5-pruned-emaonly.safetensors 4.27GB，直连可达；HF 不通时的
+    备用源）；
+  - smoke 实测（GB10，SD1.5 + 6 图数据集，bf16，dim=8，adamw 1e-4，
+    512px，20 步）：loss 0.56→0.02 正常，0.43s/step；checkpoint
+    384 keys 经 diffusers UNet2DConditionModel + PEFT 全量注入验证；
+  - 顺手修两个确定性坑：① dataset flip 用全局 RNG，shuffle 下
+    flip 决策随 batch 顺序漂移 → 改按样本 idx 独立 Generator；
+    ② SDPA mem_efficient 后端 backward 走 atomicAdd 不可复现 →
+    SD1.5 关 SDPA 走原生 bmm attention。修后同种子两次重跑
+    loss 逐位一致。
 
 ## 钉版验证清单（本期顺带关闭）
 
