@@ -6,7 +6,8 @@
 - Version: v1
 - Last updated: 2026-10-12 Asia/Shanghai
 - Canonical progress file: `docs/tasks/next-integrated-phase1-task-book.md`
-- Current branch: 独立 feature 分支（`feat/next-integrated-*`，不阻塞主线）
+- Current branch: `feat/next-integrated-bootstrap`
+- Current active step: Step 1 已完成（e0f454f），Step 2 待开工
 - Design docs:
   - `docs/design/next-integrated.md`（总设计，钉版基线在其中）
   - `docs/design/engine-process-contract.md`（契约权威定义）
@@ -43,13 +44,20 @@ LoRA 网络，**SDXL LoRA 单卡 smoke 跑通**——验证"统一核心库 + ad
 
 ## 执行阶段
 
-### Step 1: 骨架与契约
+### Step 1: 骨架与契约 ✅（2026-10-12 完成）
 
 - Outputs: pyproject（依赖组参考 anima-lora 的多平台写法但版本自定）、
   engine.toml（capabilities 先写 `["sdxl"]`）、engine.d/、train.py、
   `core/contract` + `core/config`。
 - Validation: agent 按引擎契约拉起 `train.py`，假训练循环的
   progress/log/artifact/error 帧完整到达 server；SIGTERM 有 checkpoint。
+- 完成情况：
+  - 远古种子已导入 vendor/next-integrated（kohya upstream @206adb6，
+    143d5ac，排除 .venv/train_data 等本机产物）；
+  - engine.toml + engine.d/linux/nvidia/{install,audit,preflight}.sh，
+    是首个按契约落地的引擎（e0f454f）；
+  - 冒烟回路本机直跑验证通过：JSONL 帧格式正确，SIGTERM 后
+    checkpoint 落盘、exit 0；agent 端到端联调待排期。
 
 ### Step 2: automagic + LoRA
 
