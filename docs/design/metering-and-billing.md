@@ -25,13 +25,16 @@ pricing 是策略层（费率表按 GPU 型号/时段/部门配置），
 
 ## Meter：原始用量流水
 
-粒度：`(user, team, job_id, job_type, node, gpu, start, end, gpu_seconds)`。
+粒度：`(user, pool, job_id, job_type, node, gpu_index, gpu_model, start, end, gpu_seconds)`。
 
 - **任务事件流**：job.start / job.end / job.failed / job.preempted
-  全部落事件表；用量是从事件流算出的派生物。
-- **nvml 采样**：agent 周期性采集（利用率、显存、功率），
-  本地 WAL 落盘 → 批量上报 → server 写时序库
-  （VictoriaMetrics / InfluxDB 任选，可插拔）。
+  全部落事件表；用量是从事件流算出的派生物。事件帧携带 GPU 分配，
+  "哪张卡跑了多久"从第一天就是必备字段。
+- **时间不依赖节点时钟**：跨时区部署（中/美 GPU 共存）合法，
+  start/end 以 server 收到事件的时间落库，agent 附 elapsed 相对时长供校验。
+- **GPU 采样**：agent 按 gpu_index 逐卡周期性采集（利用率、显存、功率，
+  字段厂商中性），有界内存缓冲 → 批量上报 → server 写时序库
+  （VictoriaMetrics / InfluxDB 任选，可插拔）；断网溢出丢弃并记 gap。
 - **空闲 vs 占用分开算**：分配了没跑满 ≠ 实际算掉，
   两组指标都出（这通常是内部结算最先吵的点，先把数据摆出来）。
 
@@ -55,5 +58,8 @@ pricing 是策略层（费率表按 GPU 型号/时段/部门配置），
 ## 不采用
 
 - 账单与用量分开记两套（必然对不上）。
-- agent 上报即入账、无本地 WAL（断网丢数据）。
+- ~~agent 上报即入账、无本地 WAL（断网丢数据）~~ → 修正（2026-10-12）：
+  agent 无状态是更高优先级决策，断网期间有界内存缓冲 + gap 标记；
+  数据洞在私有部署可信环境下可接受，对账按 gap 区间标记处理。
+  若未来运营跨组织算力池再评估追加溢出文件。
 - 首版做防篡改计量（私有部署可信；若未来运营算力池再补交叉验证）。

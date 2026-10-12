@@ -58,6 +58,24 @@ ToB 场景与 ToC（lora-scripts-next 社区版）的目标互斥：
 5. **交付形态三档**：仅引擎源码（客户自行改造）/ 仅 agent / 全家桶。
    CI 需要对应三条打包路径。
 
+6. **资源池（pool）是调度与访问控制的一等模型**。
+   节点↔池多对多，归属是 server 侧元数据（admin 划分，
+   agent 启动参数 `--pool` 只是初始建议）；用户↔池、数据集↔池授权；
+   队列按池分 FIFO，池不预留资源，任务排队到节点有空闲 GPU 才下发。
+
+7. **数据集与产物由 server 统一管理**。
+   存储 backend 抽象（默认 server 本地磁盘，可选 S3/MinIO）；
+   agent 不持有数据目录权威，按 URI+sha256 主动拉取，支持
+   file/s3/https-server 三种 scheme；训练产物回传同一存储层。
+
+8. **日志全链路统一 JSONL schema**（ts/level/source/node_id/job_id/msg）。
+   协议 log 帧与节点落盘文件同一份格式，Filebeat/Logstash 可直接
+   tail 采集，不依赖平台通路。
+
+9. **完整用户系统从 Phase 2 就在**（登录/RBAC/access token 签发），
+   不是后期补的。agent 零入站端口、无任何自升级通路，
+   升级由运维手动替换二进制。
+
 ## Monorepo 布局
 
 ```

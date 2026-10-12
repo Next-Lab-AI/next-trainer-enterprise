@@ -20,11 +20,15 @@ venv 照旧，**按引擎（必要时按任务）独立环境**。
 
 - venv 命名含依赖指纹（requirements/constraints 哈希）：
   同指纹环境直接复用，避免每个任务重建。
-- agent 本地状态库（BoltDB/SQLite 单文件）记录：
-  环境清单、指纹、来源指令 `command_id`、健康状态。
+- **agent 无状态**：不引入本地状态库；环境清单、指纹、健康状态
+  由扫描 `envs/` 目录与冒烟审计**实时推导**（磁盘即事实），
+  来源指令 `command_id` 记在环境目录内的元数据文件里（幂等追溯用）。
 
 ## provision 指令执行流程
 
+0. 触发方式：admin 在 web 节点详情发起"安装引擎"（运维操作），
+   server 下发指令；引擎包作为资产纳入 server 存储层
+   （随全家桶预装或 admin 上传），agent 拉取 + sha256 校验。
 1. server 下发 `provision { engine, version, constraints, command_id }`。
 2. agent 计算指纹：已存在且健康 → 直接回报 ready（幂等）。
 3. 否则创建 venv → 安装依赖 → **审计**（import 冒烟、torch/CUDA 自检、
