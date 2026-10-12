@@ -7,7 +7,7 @@
 - Last updated: 2026-10-12 Asia/Shanghai
 - Canonical progress file: `docs/tasks/next-integrated-phase1-task-book.md`
 - Current branch: `feat/next-integrated-bootstrap`
-- Current active step: Step 1 已完成（e0f454f），Step 2 待开工
+- Current active step: Step 2 已完成，Step 3 待开工
 - Design docs:
   - `docs/design/next-integrated.md`（总设计，钉版基线在其中）
   - `docs/design/engine-process-contract.md`（契约权威定义）
@@ -59,12 +59,28 @@ LoRA 网络，**SDXL LoRA 单卡 smoke 跑通**——验证"统一核心库 + ad
   - 冒烟回路本机直跑验证通过：JSONL 帧格式正确，SIGTERM 后
     checkpoint 落盘、exit 0；agent 端到端联调待排期。
 
-### Step 2: automagic + LoRA
+### Step 2: automagic + LoRA ✅（2026-10-12 完成）
 
 - Outputs: `optimizers/`（automagic 1/2/3 + optimizer_utils）、
   `core/network` LoRA、`core/checkpoint`。
 - Validation: quanto 8bit 在 torch 2.12 下实测通过（不通过则 automagic
   先走 32bit 路径并记录）；LoRA save/load roundtrip 与种子实现一致。
+- 完成情况：
+  - automagic 1/2/3 + optimizer_utils 移植自 vendor/ai-toolkit（cd59ede），
+    quanto 改可选导入；`core/optimizers` 注册表落地；CPU 冒烟全过；
+  - **quanto 0.2.7 在 torch 2.12.1+cu132 实测通过**：int8 量化/反量化、
+    QBytesTensor 写回、automagic v1 直接吃 quanto 参数均正常，
+    无需退 32bit（钉版验证清单关闭一项）；
+  - core/network LoRA 移植（f8b48e1）：LoRAModule 与种子前向 bitwise
+    一致；core/checkpoint 用 diffusers/PEFT 命名（lora_A/lora_B），
+    alpha/rank 缩放烘进 lora_B（diffusers 原生加载不读 alpha），
+    无 kohya 兼容；roundtrip 测试 4 项全过；
+  - 环境修正：flash-attn 预编译 wheel 移出 pyproject（GitHub 直连 URL
+    会阻塞 uv lock），改由 engine.d/linux/nvidia/install.sh 按架构可选
+    安装（已并入骨架 commit 54863f5）；vendor venv 已建
+    （torch 2.12.1+cu132 / py3.13 / transformers 5.5.4 / diffusers 0.35.2）。
+- 本机测试资产：工作区外层 `docs/test-assets-2026-10-12.md`
+  （ComfyUI 模型库 + lora-scripts-next-test 数据集/历史任务）。
 
 ### Step 3: SDXL adapter + smoke
 
@@ -83,7 +99,8 @@ LoRA 网络，**SDXL LoRA 单卡 smoke 跑通**——验证"统一核心库 + ad
 
 - [ ] sd-scripts `anima_train*` 在 transformers 5.5 下的 API 兼容排查
       （T5/LLM tokenizer 加载层，为 Step 后的 Anima 吸收铺路）
-- [ ] optimum.quanto 在 torch 2.12 下的实测（Step 2）
+- [x] ~~optimum.quanto 在 torch 2.12 下的实测（Step 2）~~ ✅ 通过（0.2.7 +
+      torch 2.12.1+cu132，2026-10-12）
 - [ ] torch 2.12/cu132 的 Windows wheel 覆盖确认（ToB 交付前提）
 
 ## 风险
