@@ -7,7 +7,7 @@
 - Last updated: 2026-10-12 Asia/Shanghai
 - Canonical progress file: `docs/tasks/next-integrated-phase1-task-book.md`
 - Current branch: `feat/next-integrated-bootstrap`
-- Current active step: Step 2 已完成，Step 3 待开工
+- Current active step: Step 3 已完成（对照项后补），Step 4 待开工
 - Design docs:
   - `docs/design/next-integrated.md`（总设计，钉版基线在其中）
   - `docs/design/engine-process-contract.md`（契约权威定义）
@@ -82,11 +82,31 @@ LoRA 网络，**SDXL LoRA 单卡 smoke 跑通**——验证"统一核心库 + ad
 - 本机测试资产：工作区外层 `docs/test-assets-2026-10-12.md`
   （ComfyUI 模型库 + lora-scripts-next-test 数据集/历史任务）。
 
-### Step 3: SDXL adapter + smoke
+### Step 3: SDXL adapter + smoke ✅（2026-10-12 完成，loss 对照后补）
 
 - Outputs: `adapters/sdxl/` 三件套；diffusers 版本定版回填设计文档。
 - Validation: 单卡 SDXL LoRA smoke 跑通，loss 曲线与 vendor/sd-scripts
   同配置对照无异常；产出 checkpoint 可被 diffusers 直接加载。
+- 完成情况：
+  - `adapters/sdxl/`：load（种子 library 加载 + transformers 5.5 shim）/
+    forward（eps 预测 + DDPM scaled_linear + VAE 0.13025，与种子主回路
+    逐步对应）；`core/dataset` 最小图片+caption 数据集（中心裁剪，完整
+    bucketing 拆解仍随第二个模型做）；train.py 接入真实训练回路
+    （契约帧原生输出）；
+  - smoke 实测（GB10，tIllunai3_v8 + 6 图数据集，bf16，dim=8，adamw
+    1e-4，20 步）：loss 0.25→0.03 正常下降区间，同种子重跑逐位一致；
+  - **checkpoint diffusers 直接加载验证通过**：diffusers 0.35.2 + peft，
+    722 层全部注入 UNet2DConditionModel（种子 input_blocks 路径经
+    kohya→legacy→PEFT 官方转换链映射；proj_in/out 的 Linear↔Conv1x1
+    维度转换）；
+  - SIGTERM 中途停止：checkpoint 落盘 + exit 0（真实训练回路）；
+  - diffusers 定版 0.35.x（0.35.2），设计文档已回填；
+  - 坑位记录：transformers 5.5 的 _LazyModule 会替换
+    sys.modules["transformers"]，shim 别名必须在首次符号解析后打在
+    新对象上（见 adapters/sdxl/_compat.py）；HF 在线探测在网络不可达时
+    挂数分钟，tokenizer 改本地缓存优先。
+- 遗留：loss 曲线与 vendor/sd-scripts 同配置对照**另起任务排期**
+  （vendor 无现成环境；且数据集预处理不同，对照只能看趋势）。
 
 ### Step 4: SD1.5 adapter
 

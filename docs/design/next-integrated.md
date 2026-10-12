@@ -31,7 +31,7 @@ CUDA 13 已将其列入废弃——亮不了就给客户发老 vendor 引擎镜�
 | Python | 3.13 | 下方组合在本机 GB10（aarch64）已验证 |
 | torch | 2.12.x + cu132 单一 index | 一套 wheel 覆盖 sm_80→sm_120；不追 2.13/2.14（quanto/flash-attn 预编译覆盖未跟上，无必升特性） |
 | transformers | 5.5.x | 可信源最高钉版（ai-toolkit ==5.5.3）；anima-lora 的 ≥5.10 是激进货，不采信 |
-| diffusers | 对齐 ai-toolkit / sd-scripts 取交集，第一期 smoke 时定版 | — |
+| diffusers | 0.35.x（0.35.2 实测） | 2026-10-12 SDXL LoRA smoke 定版：加载/训练/LoRA 保存格式转换链全通 |
 
 flash-attn 用 mjun0812 预编译 wheel（aarch64/x86_64 均有
 `cu132torch2.12-cp313`），装不上就退 SDPA，不阻塞。
