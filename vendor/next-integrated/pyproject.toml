@@ -12,7 +12,7 @@ dependencies = [
     # 钉版基线（docs/design/next-integrated.md §环境钉版基线）：
     # transformers 5.5.x（ai-toolkit 钉法，可信源最高）
     "transformers>=5.5.3,<5.6",
-    # provisional：smoke 时对齐 ai-toolkit/sd-scripts 取交集后定版回填
+    # 定版 0.35.x（2026-10-12 SDXL smoke 实测，uv.lock 解析 0.35.2）
     "diffusers>=0.35.0,<0.36",
     "safetensors>=0.7.0",
     "einops>=0.7.0",
@@ -24,6 +24,10 @@ dependencies = [
     "huggingface-hub>=1.0.0",
     "imagesize>=1.4.1",
     "opencv-python>=4.11.0.86",
+    # 种子 library/ 的零散依赖（纯 python 小包）
+    "toml>=0.10.2",
+    "voluptuous>=0.13.1",
+    "ftfy>=6.1.1",
     # Optimizers: automagic 移植依赖 quanto 8bit tensor（torch 2.12 兼容性待实测，
     # 不通则 automagic 先走 32bit 路径）；其余自适应优化器走 pytorch-optimizer
     "optimum-quanto>=0.2.7",
