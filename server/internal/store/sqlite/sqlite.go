@@ -12,9 +12,20 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const schemaVersion = 1
+const schemaVersion = 3
 
-const schema = `
+var migrations = []string{schemaV1, migrationV2, migrationV3}
+
+const migrationV2 = `
+CREATE UNIQUE INDEX IF NOT EXISTS idx_events_agent_seq
+	ON events(node_id, agent_seq) WHERE agent_seq IS NOT NULL;
+`
+
+const migrationV3 = `
+ALTER TABLE jobs ADD COLUMN request TEXT NOT NULL DEFAULT '{}';
+`
+
+const schemaV1 = `
 CREATE TABLE IF NOT EXISTS users (
 	id            TEXT PRIMARY KEY,
 	username      TEXT NOT NULL UNIQUE,
@@ -184,11 +195,10 @@ func (s *DB) migrate() error {
 	if err := s.db.QueryRow("PRAGMA user_version").Scan(&v); err != nil {
 		return err
 	}
-	if v >= schemaVersion {
-		return nil
-	}
-	if _, err := s.db.Exec(schema); err != nil {
-		return fmt.Errorf("migrate: %w", err)
+	for i := v; i < schemaVersion && i < len(migrations); i++ {
+		if _, err := s.db.Exec(migrations[i]); err != nil {
+			return fmt.Errorf("migrate v%d: %w", i+1, err)
+		}
 	}
 	_, err := s.db.Exec(fmt.Sprintf("PRAGMA user_version=%d", schemaVersion))
 	return err

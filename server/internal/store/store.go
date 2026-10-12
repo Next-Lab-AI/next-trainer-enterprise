@@ -112,6 +112,7 @@ type Job struct {
 	GPUs          []byte
 	Status        string
 	ExitCode      *int64
+	Request       []byte
 	CreatedAt     int64
 	StartedAt     *int64
 	EndedAt       *int64

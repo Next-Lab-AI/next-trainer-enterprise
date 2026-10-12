@@ -10,14 +10,14 @@ import (
 
 type jobsRepo struct{ q querier }
 
-const jobCols = "job_id, user_id, pool_id, node_id, engine, engine_version, config_toml, assets, gpus, status, exit_code, created_at, started_at, ended_at"
+const jobCols = "job_id, user_id, pool_id, node_id, engine, engine_version, config_toml, assets, gpus, status, exit_code, request, created_at, started_at, ended_at"
 
 func scanJob(row interface{ Scan(...any) error }) (*store.Job, error) {
 	var j store.Job
 	var exit sql.NullInt64
 	var started, ended sql.NullInt64
 	err := row.Scan(&j.JobID, &j.UserID, &j.PoolID, &j.NodeID, &j.Engine, &j.EngineVersion,
-		&j.ConfigTOML, &j.Assets, &j.GPUs, &j.Status, &exit, &j.CreatedAt, &started, &ended)
+		&j.ConfigTOML, &j.Assets, &j.GPUs, &j.Status, &exit, &j.Request, &j.CreatedAt, &started, &ended)
 	j.ExitCode = intPtr(exit)
 	j.StartedAt = intPtr(started)
 	j.EndedAt = intPtr(ended)
@@ -26,10 +26,10 @@ func scanJob(row interface{ Scan(...any) error }) (*store.Job, error) {
 
 func (r *jobsRepo) CreateJob(ctx context.Context, j *store.Job) error {
 	_, err := r.q.ExecContext(ctx,
-		`INSERT INTO jobs (`+jobCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO jobs (`+jobCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		j.JobID, j.UserID, j.PoolID, j.NodeID, j.Engine, j.EngineVersion,
 		j.ConfigTOML, blob(j.Assets, "[]"), blob(j.GPUs, "[]"), j.Status,
-		nullInt(j.ExitCode), j.CreatedAt, nullInt(j.StartedAt), nullInt(j.EndedAt))
+		nullInt(j.ExitCode), blob(j.Request, "{}"), j.CreatedAt, nullInt(j.StartedAt), nullInt(j.EndedAt))
 	return conflictOr(err)
 }
 
@@ -58,7 +58,7 @@ func (r *jobsRepo) ListJobs(ctx context.Context, f store.JobFilter) ([]*store.Jo
 			args = append(args, s)
 		}
 	}
-	q += ` ORDER BY created_at DESC`
+	q += ` ORDER BY created_at DESC, rowid DESC`
 	if f.Limit > 0 {
 		q += ` LIMIT ?`
 		args = append(args, f.Limit)
@@ -109,12 +109,16 @@ func (r *jobsRepo) UpdateJobStatus(ctx context.Context, jobID, status string, ex
 func (r *jobsRepo) AppendEvents(ctx context.Context, events []*store.Event) error {
 	for _, e := range events {
 		res, err := r.q.ExecContext(ctx,
-			`INSERT INTO events (node_id, job_id, type, payload, server_ts, agent_seq, elapsed_s, gap)
+			`INSERT OR IGNORE INTO events (node_id, job_id, type, payload, server_ts, agent_seq, elapsed_s, gap)
 			 VALUES (?,?,?,?,?,?,?,?)`,
 			e.NodeID, e.JobID, e.Type, blob(e.Payload, "{}"), e.ServerTS,
 			nullInt(e.AgentSeq), nullInt(e.ElapsedS), boolInt(e.Gap))
 		if err != nil {
 			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			e.Seq = -1
+			continue
 		}
 		seq, err := res.LastInsertId()
 		if err != nil {
