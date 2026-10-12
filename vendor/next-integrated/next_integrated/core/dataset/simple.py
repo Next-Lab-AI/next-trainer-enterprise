@@ -50,7 +50,10 @@ class ImageCaptionDataset(torch.utils.data.Dataset):
 
         arr = np.array(img, dtype=np.float32) / 127.5 - 1.0
         tensor = torch.from_numpy(arr).permute(2, 0, 1)
-        if self.flip_aug and torch.rand(()) < 0.5:
+        # flip 的 RNG 消费要独立于 batch 顺序：shuffle 下不同 worker/epoch 顺序
+        # 不同，用全局 RNG 会让 flip 决策随顺序漂移，同种子重跑不可复现
+        flip_rng = torch.Generator().manual_seed(idx)
+        if self.flip_aug and torch.rand((), generator=flip_rng) < 0.5:
             tensor = torch.flip(tensor, dims=[2])
 
         return {

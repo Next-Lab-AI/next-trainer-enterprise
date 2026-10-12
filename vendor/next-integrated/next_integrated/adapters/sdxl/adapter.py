@@ -43,6 +43,10 @@ class Bundle:
     noise_scheduler: DDPMScheduler
     resolution: int
 
+    @property
+    def text_encoders(self) -> list[torch.nn.Module]:
+        return [self.text_encoder1, self.text_encoder2]
+
 
 def _load_tokenizer(path: str) -> CLIPTokenizer:
     # 本地缓存优先：网络不可达时 from_pretrained 的默认在线探测会挂数分钟
