@@ -55,7 +55,18 @@ func (r *nodesRepo) List(ctx context.Context) ([]*store.Node, error) {
 
 func (r *nodesRepo) UpdateHeartbeat(ctx context.Context, nodeID string, lastSeen int64, status string) error {
 	res, err := r.q.ExecContext(ctx,
-		`UPDATE nodes SET last_seen=?, status=? WHERE node_id=?`, lastSeen, status, nodeID)
+		`UPDATE nodes SET last_seen=?, status=? WHERE node_id=? AND status <> ?`,
+		lastSeen, status, nodeID, store.NodeStatusRevoked)
+	if err != nil {
+		return err
+	}
+	return affectedOne(res)
+}
+
+func (r *nodesRepo) UpdateFacts(ctx context.Context, nodeID, hostname, agentVersion, protocolVersion string, labels, gpus []byte) error {
+	res, err := r.q.ExecContext(ctx,
+		`UPDATE nodes SET hostname=?, agent_version=?, protocol_version=?, labels=?, gpus=? WHERE node_id=?`,
+		hostname, agentVersion, protocolVersion, blob(labels, "{}"), blob(gpus, "[]"), nodeID)
 	if err != nil {
 		return err
 	}
@@ -75,6 +86,16 @@ func (r *nodesRepo) UpdateMeta(ctx context.Context, nodeID, description string, 
 func (r *nodesRepo) SetStatus(ctx context.Context, nodeID, status string) error {
 	res, err := r.q.ExecContext(ctx,
 		`UPDATE nodes SET status=? WHERE node_id=?`, status, nodeID)
+	if err != nil {
+		return err
+	}
+	return affectedOne(res)
+}
+
+func (r *nodesRepo) MarkOffline(ctx context.Context, nodeID string) error {
+	res, err := r.q.ExecContext(ctx,
+		`UPDATE nodes SET status=? WHERE node_id=? AND status <> ?`,
+		store.NodeStatusOffline, nodeID, store.NodeStatusRevoked)
 	if err != nil {
 		return err
 	}

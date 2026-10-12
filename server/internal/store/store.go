@@ -168,8 +168,10 @@ type Nodes interface {
 	Get(ctx context.Context, nodeID string) (*Node, error)
 	List(ctx context.Context) ([]*Node, error)
 	UpdateHeartbeat(ctx context.Context, nodeID string, lastSeen int64, status string) error
+	UpdateFacts(ctx context.Context, nodeID, hostname, agentVersion, protocolVersion string, labels, gpus []byte) error
 	UpdateMeta(ctx context.Context, nodeID, description string, labels []byte) error
 	SetStatus(ctx context.Context, nodeID, status string) error
+	MarkOffline(ctx context.Context, nodeID string) error
 }
 
 type Pools interface {

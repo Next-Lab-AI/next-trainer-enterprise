@@ -3,6 +3,8 @@ module github.com/Next-Lab-AI/next-trainer-enterprise/server
 go 1.22
 
 require (
+	github.com/Next-Lab-AI/next-trainer-enterprise/protocol v0.0.0-00010101000000-000000000000
+	github.com/coder/websocket v1.8.12
 	golang.org/x/crypto v0.33.0
 	modernc.org/sqlite v1.36.0
 )
