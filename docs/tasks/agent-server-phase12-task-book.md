@@ -20,7 +20,8 @@ Phase 3 的 sd-scripts wrapper 仅做到"能被拉起、能转发 stdout"的最�
 
 1. **agent 无状态**：不引入 BoltDB/SQLite；计算节点不保存任何可能过期的元数据，
    一切以实时观测事实（进程存活、GPU 占用、磁盘上的 envs/ 目录）为准。
-   唯一例外：单个 JSON 身份文件（node_id + session_token，0600），握手恢复会话用。
+   唯一例外：单个 JSON 身份文件（node_id + credential + session_token +
+   last_seq，0600），握手恢复会话与 seq 续传用。
 2. **不做 mock server**：agent 测试直接对真实 server 联调
    （server 先行出最小 ws 接入，agent 联调即集成测试）。
 3. **GPU 抽象层厂商无关**：`agent/internal/gpu/` 定义接口
@@ -183,7 +184,7 @@ agent/
 │                       command_id 幂等去重、事件/日志/metrics 有界缓冲批量上报
 ├── internal/log/       统一 JSONL 日志：自身日志 + 训练流归一化落盘，
 │                       敏感 env 过滤（TOKEN/KEY/SECRET/PASSWORD 模式）
-└── internal/config/    启动 flag + 身份文件（node_id/session_token JSON，0600）
+└── internal/config/    启动 flag + 身份文件（node_id/credential/session_token/last_seq JSON，0600）
 ```
 
 关键语义：

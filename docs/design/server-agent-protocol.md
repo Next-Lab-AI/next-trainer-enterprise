@@ -37,7 +37,9 @@ server → agent: Welcome { node_id, session_token, server_time,
 - 握手成功后下发 **session_token**（运行期凭证），与注册 token 分离；
   session_token 支持轮换，access token 泄漏不波及已注册节点。
 - `node_id` 由 server 分配，agent 只持久化单个身份文件
-  （node_id + session_token，0600），重启后复用。
+  （node_id + credential + session_token + last_seq，0600），重启后复用。
+  last_seq 与 credential 同生命周期：证书在则 seq 跨重启续传，
+  清证书（改注册别的 server）则归零。
 - `description` / `pool` 是节点归属的**初始建议**：新池名 server 自动创建，
   缺省进 `default` 池；之后节点↔池归属以 server 侧元数据为准
   （admin 可改划，多对多），agent 上报值不再影响已有归属。

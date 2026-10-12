@@ -15,7 +15,7 @@
 | type | string | ✅ | 消息类型，见下表 |
 | protocol_version | int | ✅ | 首版恒为 1 |
 | command_id | string | 条件 | s→a 指令必填（幂等键）；a→s 对指令的应答回显 |
-| seq | int | ✅(a→s) | agent 侧单调递增序号，断线重连续传；server 按 (node_id, seq) 去重 |
+| seq | int | ✅(a→s) | agent 侧单调递增序号，断线重连与重启均续传（last_seq 持久化于身份文件，与 credential 同生命周期：证书在则续，证书清则归零）；server 按 (node_id, seq) 去重 |
 | payload | object | ✅ | 消息体，逐类型定义见下 |
 
 消息类型一览：`hello` / `welcome` / `heartbeat` / `provision` / `env.gc` /
@@ -38,6 +38,7 @@
 | gpus | array | ✅ | `[{index, uuid, model, vendor, mem_total_mb}]`，vendor 中性 |
 | cpu / mem_mb | string / int | ✅ | 概要信息 |
 | labels | object | ❌ | 自由键值对 |
+| base_envs | array | ❌ | 已登记底座环境事实 `[{python, torch?, cuda?}]`（python 为绝对路径，torch/cuda 为探测到的版本，缺测可空）；provision `env_mode=external` 只能引用此处已登记的底座 |
 
 ### welcome（s→a，握手应答）
 
@@ -69,6 +70,9 @@
 | version | string | ✅ | |
 | package | object | ✅ | 引擎包资产 `{uri, sha256, size?}` |
 | constraints | string | ❌ | 依赖约束（pip constraints 内容或引用） |
+| env_mode | string | ❌ | `venv`（默认，自建隔离环境）/ `external`（复用已登记底座环境） |
+| base_python | string | 条件 | external 模式必填；必须引用 Hello 已登记的 `base_envs[]`，不接受临时路径 |
+| download_sources | object | ❌ | 下载源覆盖 `{pip_index?, pytorch_index?, hf_endpoint?, github_prefix?}`，指向客户内网镜像 |
 
 应答：`event{type:"provision.ready"|"provision.broken"}`，broken 附审计日志
 `file` 帧或日志段引用。同指纹已存在直接 ready（幂等）。
@@ -79,7 +83,10 @@
 |---|---|---|---|
 | older_than_days | int | ❌ | 默认 30 |
 
-回收零引用且超龄的 venv，应答 `event{type:"env.gc.done", removed:[...]}`。
+清理节点缓存：`datasets/` 零引用资产缓存与 `jobs/` 产物缓存（超龄判定）。
+agent 侧产物与数据集不应长存；本期仅由 server 手动触发（admin 操作），
+自动周期清理留待后续。venv/引擎目录不在本指令范围（随主控卸载引擎流程）。
+应答 `event{type:"env.gc.done", removed:[...]}`。
 
 ### job.start
 
