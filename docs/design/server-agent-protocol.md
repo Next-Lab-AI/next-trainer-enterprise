@@ -24,7 +24,12 @@ server → agent: Welcome { node_id, session_token, server_time,
                          heartbeat_interval, config }
 ```
 
-- 首次注册用 access token（管理员在主控 web 创建，可撤销、可设有效期）。
+- 注册有两种模式：
+  1. **token 模式（默认）**：管理员在主控 web 创建 access token
+     （可撤销、可设有效期），agent 凭 `--token` 注册——白名单制。
+  2. **注册窗口模式**：admin 在 web 打开注册窗口（toggle），窗口期内
+     Hello 免 token，方便云算力与小规模场景批量接入；用完由 admin
+     手动关掉，关闭后恢复仅 token。
 - 握手成功后下发 **session_token**（运行期凭证），与注册 token 分离；
   session_token 支持轮换，access token 泄漏不波及已注册节点。
 - `node_id` 由 server 分配，agent 只持久化单个身份文件

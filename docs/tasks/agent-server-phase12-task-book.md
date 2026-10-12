@@ -128,6 +128,12 @@ Phase 3 的 sd-scripts wrapper 仅做到"能被拉起、能转发 stdout"的最�
     argon2id 密码哈希、会话 token；agent access token 由 admin 在 web
     创建/撤销；首启引导建 admin。团队/配额留 Phase 5（角色体系就位后
     只是加维度）。
+17. **节点注册双模式：token 白名单 + 注册窗口**：
+    - token 模式为默认（白名单制，见决策 9）；
+    - **注册窗口**：admin 在 web 打开 toggle，窗口期内 Hello 免 token——
+      方便云算力与小规模场景批量接入；用完由 admin 手动关掉，
+      关闭后恢复仅 token。窗口开关状态本身不需要额外防护，
+      只有 admin 能操作。
 
 ## 2. 协议 v1 schema 先行（动工第 0 步）
 
@@ -135,8 +141,8 @@ Phase 3 的 sd-scripts wrapper 仅做到"能被拉起、能转发 stdout"的最�
 （逐消息字段表：类型、必填性、版本规则）：
 
 - Hello / Welcome（node_id 恢复语义、身份文件约定；
-  Hello 携带 `description` / `pool`；不校验节点时钟——
-  跨时区部署合法，调度只看上报事实）
+  Hello 携带 `description` / `pool`；注册模式 token / 注册窗口（窗口期
+  免 token）；不校验节点时钟——调度只看上报事实）
 - job.start / job.stop / job.kill（command_id 幂等规则；
   job.start 内嵌 `assets[]` 资产清单 + 渲染后 TOML 配置；
   依赖未就绪时 agent 回 `job.waiting {reason, missing[]}`）
@@ -218,7 +224,8 @@ server/
 │   └── sqlite/            首版实现（单文件，WAL 模式）
 ├── internal/api/          web 用 REST/SSE（节点、任务、数据集、池、日志流）
 ├── internal/auth/         用户系统：登录会话、argon2id 密码哈希、
-│                          RBAC（admin/user 角色骨架）、access token 签发/撤销
+│                          RBAC（admin/user 角色骨架）、access token 签发/撤销、
+│                          注册窗口 toggle
 ├── internal/log/          统一 JSONL 日志（与 agent 同 schema），
 │                          web 日志视图与对外采集共用同一事件流
 └── web/                   Vue 3 + Vite，build 产物 go:embed
@@ -231,7 +238,8 @@ server/
 - **store provider 抽象**：repository 接口先行，SQLite 实现与接口同 PR 落地，
   接口设计对照 SQL 语义（不发明 KV 式 API），PG/MySQL 后续平移。
 - **web 页面**：登录页、节点列表（在线/GPU/池/描述/任务数；节点详情含
-  引擎环境列表与"安装引擎"运维操作）、任务列表（状态/日志入口）、
+  引擎环境列表与"安装引擎"运维操作；**注册窗口 toggle**）、
+  任务列表（状态/日志入口）、
   数据集管理（上传/列表/池授权）、admin 用户管理页（含 access token 签发、
   用户↔池授权）、admin 资源池管理页（节点 assign）。
   dev 时 vite proxy 到 server，生产 go:embed。
@@ -267,6 +275,7 @@ server 排前（第 2 步先于 agent 主体），保证 agent 联调有真实�
    未登录访问一律 401 跳登录。
 2. admin 在 web 创建用户与 agent access token（可撤销）；
    普通用户可提交任务，无权管理用户/节点 token（RBAC 校验）。
+   注册窗口：打开时免 token 可注册，关闭后无 token / 错误 token 均被拒。
 3. `agent --server ... --token ... --description "..." --pool vision`
    注册成功，web 节点列表可见描述/池/GPU 拓扑；新池名自动创建且默认
    仅 admin 可用；不带 `--pool` 进 default 池。
