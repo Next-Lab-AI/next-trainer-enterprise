@@ -39,6 +39,22 @@ func jobDTO(j *store.Job) jobOut {
 	}
 }
 
+type poolOut struct {
+	PoolID      string   `json:"pool_id"`
+	Name        string   `json:"name"`
+	AutoCreated bool     `json:"auto_created"`
+	CreatedAt   int64    `json:"created_at"`
+	Nodes       []string `json:"nodes"`
+}
+
+func (s *Server) poolDTO(r *http.Request, p *store.Pool) poolOut {
+	nodes, _ := s.st.Pools().NodesOf(r.Context(), p.PoolID)
+	if nodes == nil {
+		nodes = []string{}
+	}
+	return poolOut{PoolID: p.PoolID, Name: p.Name, AutoCreated: p.AutoCreated, CreatedAt: p.CreatedAt, Nodes: nodes}
+}
+
 func (s *Server) handleListPools(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFrom(r.Context())
 	ps, err := s.pools.VisiblePools(r.Context(), u)
@@ -46,10 +62,11 @@ func (s *Server) handleListPools(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	if ps == nil {
-		ps = []*store.Pool{}
+	out := make([]poolOut, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, s.poolDTO(r, p))
 	}
-	writeJSON(w, http.StatusOK, ps)
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
