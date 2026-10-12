@@ -14,6 +14,8 @@
   - `docs/design/engine-process-contract.md`
   - `docs/design/metering-and-billing.md`
   - `docs/design/environment-provisioning.md`
+- Sub task books:
+  - `docs/tasks/agent-server-phase12-task-book.md`（Phase 1+2 细化，2026-10-12）
 
 ## 目标
 
@@ -52,15 +54,18 @@ vendor patched 引擎源码（进程边界标准化），
 ### Phase 1: agent 骨架
 
 - Purpose: 先跑通"exe 启动 → 注册 → 收指令 → 拉起一个 python 进程"全链路。
-- Outputs: `agent/` 可构建 exe；注册握手、心跳重连、WAL、进程树回收；
-  简单 TUI（节点状态自查看）。
-- Validation: 对 mock server 的集成测试；杀进程恢复测试；断网补传测试。
+- Outputs: `agent/` 可构建 exe；注册握手、心跳重连、进程树回收；
+  双 lane 与资产依赖门。（细化见 `agent-server-phase12-task-book.md`；
+  2026-10-12 起 agent 无状态无 WAL，TUI 暂缓）
+- Validation: 对真实 server 的端到端联调；杀进程恢复测试；断网缓冲补传测试。
 
 ### Phase 2: server 核心 + 协议落地
 
 - Purpose: 协议的真实实现，节点/任务/事件的最小闭环。
-- Outputs: `server/`：ws 接入、节点表、任务队列（FIFO + 资源匹配起步）、
-  事件流接收落库；`server/web` 最小页面（节点列表 + 任务列表）。
+- Outputs: `server/`：ws 接入、节点表、资源池与授权、任务队列（按池 FIFO +
+  资源匹配起步）、事件流接收落库、用户系统（RBAC）、数据集管理
+  （local/s3 backend）；`server/web` 页面（登录/节点/任务/数据集/池/用户）。
+  （细化见 `agent-server-phase12-task-book.md`）
 - Validation: agent+server 端到端跑通 sd-scripts 单卡训练（用契约 wrapper）。
 
 ### Phase 3: 引擎契约适配（sd-scripts 先行）
@@ -79,7 +84,8 @@ vendor patched 引擎源码（进程边界标准化），
 
 ### Phase 5: 展示层与多用户
 
-- Outputs: 用户/团队/配额，任务提交与详情页，节点池视图，计量 dashboard。
+- Outputs: 团队/配额（叠加在资源池之上）、任务提交与详情页完善、
+  节点池视图、计量 dashboard。（用户系统与 RBAC 已在 Phase 2 就位）
 - Validation: 多用户并发提交，队列与配额行为符合预期。
 
 ### Phase 6: 交付加固
