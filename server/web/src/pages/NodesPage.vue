@@ -17,11 +17,7 @@ const isAdmin = computed(() => auth.user?.role === "admin")
 let timer: ReturnType<typeof setInterval> | undefined
 
 function gpuCount(n: Node): number {
-  try {
-    return (JSON.parse(n.gpus) as unknown[]).length
-  } catch {
-    return 0
-  }
+  return n.gpus?.length ?? 0
 }
 
 async function refresh(silent = false) {

@@ -13,14 +13,14 @@ export interface Node {
   description: string
   agent_version: string
   protocol_version: string
-  labels: string
-  gpus: string
+  labels: Record<string, string> | null
+  gpus: GpuInfo[]
   status: string
   first_seen: number
   last_seen: number
   online: boolean
   pools: string[]
-  base_envs?: string
+  base_envs?: BaseEnv[]
 }
 
 export interface GpuInfo {
