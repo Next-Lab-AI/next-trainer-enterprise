@@ -20,7 +20,7 @@ import (
 	"github.com/Next-Lab-AI/next-trainer-enterprise/agent/internal/provision"
 )
 
-const agentVersion = "0.1.0"
+var agentVersion = "dev"
 
 func main() {
 	cfg, err := config.ParseFlags(os.Args[1:])
@@ -28,6 +28,7 @@ func main() {
 		slog.Error("flags", "err", err)
 		os.Exit(2)
 	}
+	slog.Info("next-trainer-agent", "version", agentVersion)
 	if err := os.MkdirAll(cfg.Root, 0o700); err != nil {
 		slog.Error("root", "err", err)
 		os.Exit(1)
