@@ -132,8 +132,11 @@ Phase 3 的 sd-scripts wrapper 仅做到"能被拉起、能转发 stdout"的最�
     - token 模式为默认（白名单制，见决策 9）；
     - **注册窗口**：admin 在 web 打开 toggle，窗口期内 Hello 免 token——
       方便云算力与小规模场景批量接入；用完由 admin 手动关掉，
-      关闭后恢复仅 token。窗口开关状态本身不需要额外防护，
-      只有 admin 能操作。
+      关闭后恢复仅 token。窗口开关只有 admin 能操作；
+    - **免 token 仅限首次握手**：两种模式下注册成功都由 server 生成
+      节点凭证随 Welcome 下发，agent 存入身份文件；此后该节点一切连接
+      凭此凭证认证。顶替已注册节点需要拿到节点本地身份文件，
+      窗口期注册的节点与 token 注册的安全性一致。
 
 ## 2. 协议 v1 schema 先行（动工第 0 步）
 
