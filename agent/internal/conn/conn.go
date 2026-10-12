@@ -24,6 +24,10 @@ type SendBuffer interface {
 	Replay() []protocol.Frame
 }
 
+type GapReporter interface {
+	TakeGap() (from, to int64, ok bool)
+}
+
 type Hooks struct {
 	Hello          func() protocol.Hello
 	HeartbeatFacts func() protocol.Heartbeat
@@ -247,6 +251,14 @@ func (c *Conn) heartbeatLoop(ctx context.Context, interval time.Duration) {
 func (c *Conn) replayBuffer(ctx context.Context) {
 	if c.cfg.Buffer == nil {
 		return
+	}
+	if gr, ok := c.cfg.Buffer.(GapReporter); ok {
+		if from, to, has := gr.TakeGap(); has {
+			c.Send(ctx, protocol.TypeEvent, protocol.Event{
+				EventType: protocol.EventGap,
+				Data:      map[string]any{"dropped_seq_from": from, "dropped_seq_to": to},
+			})
+		}
 	}
 	frames := c.cfg.Buffer.Replay()
 	for i, f := range frames {

@@ -20,7 +20,8 @@ const (
 )
 
 const (
-	EventJobCreated      = "job.created"
+	EventJobCreated    = "job.created"
+	EventJobAlreadyRunning = "job.already_running"
 	EventJobWaiting      = "job.waiting"
 	EventJobStarting     = "job.starting"
 	EventJobProgress     = "job.progress"

@@ -122,6 +122,7 @@ event_type 枚举：
 `job.created` / `job.waiting{reason,missing[]}` / `job.starting{gpus[]}` /
 `job.progress{step,total,loss?,lr?}` / `job.finished{exit_code:0}` /
 `job.failed{code,msg}` / `job.terminated{reason:"stop"|"kill"|"preempted"}` /
+`job.already_running`（重复 job.start 的事实兜底应答）/
 `asset.*`（见 §5）/ `provision.*` / `env.gc.done` / `node.envs`（环境清单事实上报）。
 
 断网补传：重连后先发 `event{event_type:"gap", data:{dropped_seq_from,
