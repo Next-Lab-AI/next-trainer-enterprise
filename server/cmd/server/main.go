@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -22,11 +23,20 @@ import (
 	"github.com/Next-Lab-AI/next-trainer-enterprise/server/web"
 )
 
+var version = "dev"
+
 func main() {
 	addr := flag.String("addr", envOr("NT_ADDR", ":8080"), "listen address")
 	dataRoot := flag.String("data", envOr("NT_DATA", "server_data"), "data root directory")
 	httpBase := flag.String("http-base", envOr("NT_HTTP_BASE", ""), "public base url for agent asset downloads")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
+	slog.Info("next-trainer-server", "version", version)
 
 	if *httpBase == "" {
 		*httpBase = "http://localhost" + *addr
