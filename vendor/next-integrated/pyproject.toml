@@ -1,0 +1,114 @@
+[project]
+name = "next-integrated"
+version = "0.1.0"
+description = "Next integrated in-house training engine (image models, unified core)"
+requires-python = "==3.13.*"
+dependencies = [
+    # Core ML. Windows torch lives in the cuda-windows dependency-group below;
+    # Linux (x86_64/aarch64) resolves from the pytorch-cu132 index.
+    "torch>=2.12.0,<2.13 ; sys_platform != 'win32'",
+    "torchvision>=0.27.0,<0.28 ; sys_platform != 'win32'",
+    "accelerate>=1.10.0",
+    # 钉版基线（docs/design/next-integrated.md §环境钉版基线）：
+    # transformers 5.5.x（ai-toolkit 钉法，可信源最高）
+    "transformers>=5.5.3,<5.6",
+    # 定版 0.35.x（2026-10-12 SDXL smoke 实测，uv.lock 解析 0.35.2）
+    "diffusers>=0.35.0,<0.36",
+    "safetensors>=0.7.0",
+    "einops>=0.7.0",
+    "numpy>=2.0.0",
+    "Pillow",
+    "tqdm",
+    "tensorboard",
+    "sentencepiece>=0.2.1",
+    "huggingface-hub>=1.0.0",
+    "imagesize>=1.4.1",
+    "opencv-python>=4.11.0.86",
+    # 种子 library/ 的零散依赖（纯 python 小包）
+    "toml>=0.10.2",
+    "voluptuous>=0.13.1",
+    "ftfy>=6.1.1",
+    # Optimizers: automagic 移植依赖 quanto 8bit tensor（torch 2.12 兼容性待实测，
+    # 不通则 automagic 先走 32bit 路径）；其余自适应优化器走 pytorch-optimizer
+    "optimum-quanto>=0.2.7",
+    "pytorch-optimizer>=3.9.0",
+    "prodigyopt>=1.1.2",
+    # flash-attn 不进依赖树：预编译 wheel 在 GitHub releases（mjun0812），
+    # 直连 URL 会阻塞 uv lock（GitHub 不可达时整个解析卡死）。改由
+    # engine.d/<platform>/install 钩子按平台可选安装，装不上退 SDPA，不阻塞。
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.uv]
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'linux' and platform_machine == 'aarch64'",
+    "sys_platform == 'win32'",
+]
+index-strategy = "unsafe-best-match"
+conflicts = [
+    [
+        { group = "cuda-windows" },
+        { group = "rocm-windows" },
+    ],
+]
+override-dependencies = [
+    "numpy>=2.0.0",
+    # AMD torch metadata requests a Linux-only triton distribution even on
+    # Windows; triton-windows is declared in the Windows backend groups.
+    "triton ; sys_platform != 'win32'",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu132", marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
+    { index = "pytorch-cu132", group = "cuda-windows" },
+    { index = "amd-rocm-714", group = "rocm-windows" },
+]
+torchvision = [
+    { index = "pytorch-cu132", marker = "sys_platform != 'darwin' and sys_platform != 'win32'" },
+    { index = "pytorch-cu132", group = "cuda-windows" },
+    { index = "amd-rocm-714", group = "rocm-windows" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu132"
+url = "https://download.pytorch.org/whl/cu132"
+explicit = true
+
+# Also hosts ROCm runtime/device packages pulled by device extras, so it
+# cannot be explicit-only.
+[[tool.uv.index]]
+name = "amd-rocm-714"
+url = "https://repo.amd.com/rocm/whl-multi-arch/"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+# Windows accelerator backends: opt-in via `uv sync --group cuda-windows`
+# (ROCm: `--group rocm-windows`; the two groups conflict by declaration).
+cuda-windows = [
+    "torch==2.12.0+cu132 ; sys_platform == 'win32'",
+    "torchvision==0.27.0+cu132 ; sys_platform == 'win32'",
+    # flash-attn（v0.9.25 win_amd64 预编译 wheel）由 Windows install 钩子安装
+    "triton-windows>=3.7.0,<3.8.0 ; sys_platform == 'win32'",
+]
+rocm-windows = [
+    # RDNA 4 path; AMD's device-all extra pulls Linux-only Instinct packages,
+    # so select gfx120X only.
+    "torch[device-gfx1200,device-gfx1201]==2.12.0+rocm7.14.0 ; sys_platform == 'win32'",
+    "torchvision[device-gfx1200,device-gfx1201]==0.27.0+rocm7.14.0 ; sys_platform == 'win32'",
+    "triton-windows>=3.7.0,<3.8.0 ; sys_platform == 'win32'",
+]
+
+[tool.setuptools.packages.find]
+include = ["next_integrated*", "library*", "networks*"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"

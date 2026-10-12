@@ -21,6 +21,7 @@
   - `docs/api/protocol-v1.md`（协议字段级权威定义）
 - Sub task books:
   - `docs/tasks/agent-server-phase12-task-book.md`（Phase 1+2 细化，2026-10-12）
+  - `docs/tasks/next-integrated-phase1-task-book.md`（next-integrated 骨架 + SDXL 打样，2026-10-12）
 
 ## 目标
 
