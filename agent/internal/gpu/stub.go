@@ -3,9 +3,9 @@ package gpu
 import "context"
 
 type Stub struct {
-	GPUs      []GPU
-	Samples   []Sample
-	ProcList  []Process
+	GPUs     []GPU
+	Samples  []Sample
+	ProcList []Process
 }
 
 func (s *Stub) Topology(ctx context.Context) ([]GPU, error)  { return s.GPUs, nil }
