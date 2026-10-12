@@ -47,6 +47,14 @@ type JobStatusFact struct {
 type Heartbeat struct {
 	Jobs     []JobStatusFact `json:"jobs"`
 	FreeGPUs []int           `json:"free_gpus"`
+	Engines  []EngineInfo    `json:"engines,omitempty"`
+}
+
+type EngineInfo struct {
+	Name         string   `json:"name"`
+	Version      string   `json:"version"`
+	Capabilities []string `json:"capabilities,omitempty"`
+	Ready        bool     `json:"ready"`
 }
 
 type Asset struct {

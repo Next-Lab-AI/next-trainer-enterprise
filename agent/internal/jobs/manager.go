@@ -242,7 +242,7 @@ func (m *Manager) HeartbeatFacts(ctx context.Context) protocol.Heartbeat {
 			}
 		}
 	}
-	return protocol.Heartbeat{Jobs: jobs, FreeGPUs: free}
+	return protocol.Heartbeat{Jobs: jobs, FreeGPUs: free, Engines: m.prov.ScanEngines()}
 }
 
 func (m *Manager) Metrics(ctx context.Context) (protocol.Metrics, error) {

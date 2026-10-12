@@ -296,6 +296,49 @@ func (p *Provisioner) FindReadyEnv(engine, version string) (string, bool) {
 	return "", false
 }
 
+// ScanEngines 扫描 root/engines/<name>/<version>/，上报引擎清单与能力。
+// 目录可能是软链（dev 联调直接链到 vendor），用 os.Stat 判目录。
+func (p *Provisioner) ScanEngines() []protocol.EngineInfo {
+	isDir := func(path string) bool {
+		st, err := os.Stat(path)
+		return err == nil && st.IsDir()
+	}
+	root := filepath.Join(p.root, "engines")
+	names, err := os.ReadDir(root)
+	if err != nil {
+		return nil
+	}
+	var out []protocol.EngineInfo
+	for _, n := range names {
+		nameDir := filepath.Join(root, n.Name())
+		if !isDir(nameDir) {
+			continue
+		}
+		versions, err := os.ReadDir(nameDir)
+		if err != nil {
+			continue
+		}
+		for _, v := range versions {
+			dir := filepath.Join(nameDir, v.Name())
+			if !isDir(dir) {
+				continue
+			}
+			m, _, err := LoadManifest(dir)
+			if err != nil {
+				continue
+			}
+			_, ready := p.FindReadyEnv(n.Name(), v.Name())
+			out = append(out, protocol.EngineInfo{
+				Name:         n.Name(),
+				Version:      v.Name(),
+				Capabilities: m.Capabilities,
+				Ready:        ready,
+			})
+		}
+	}
+	return out
+}
+
 func (p *Provisioner) ScanEnvs() []EnvMeta {
 	var out []EnvMeta
 	entries, err := os.ReadDir(filepath.Join(p.root, "envs"))
