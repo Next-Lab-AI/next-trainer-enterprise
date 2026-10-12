@@ -8,4 +8,6 @@ require github.com/coder/websocket v1.8.12
 
 require github.com/NVIDIA/go-nvml v0.13.4-1
 
+require github.com/pelletier/go-toml/v2 v2.4.3
+
 replace github.com/Next-Lab-AI/next-trainer-enterprise/protocol => ../pkg/protocol
