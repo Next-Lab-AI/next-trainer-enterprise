@@ -153,6 +153,8 @@ func (n *NVML) memUsedByGPU() map[int]int64 {
 	return out
 }
 
+func HostMemTotalMB() int64 { return hostMemTotalMB() }
+
 func hostMemTotalMB() int64 {
 	f, err := os.Open("/proc/meminfo")
 	if err != nil {

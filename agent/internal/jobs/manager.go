@@ -63,7 +63,7 @@ type Manager struct {
 	logSink  *logSink
 }
 
-func NewManager(root, nodeID string, sender Sender, g gpu.Interface, f *fetch.Fetcher, p *provision.Provisioner, agentLog *agentlog.Logger, redact *agentlog.Redactor, bufferMB int) *Manager {
+func NewManager(root, nodeID string, sender Sender, g gpu.Interface, f *fetch.Fetcher, p *provision.Provisioner, agentLog *agentlog.Logger, redact *agentlog.Redactor, buf *RingBuffer) *Manager {
 	m := &Manager{
 		root:     root,
 		nodeID:   nodeID,
@@ -73,7 +73,7 @@ func NewManager(root, nodeID string, sender Sender, g gpu.Interface, f *fetch.Fe
 		prov:     p,
 		redact:   redact,
 		agentLog: agentLog,
-		Buffer:   NewRingBuffer(bufferMB << 20),
+		Buffer:   buf,
 		jobs:     map[string]*Job{},
 		seenCmds: map[string]bool{},
 		maintSem: make(chan struct{}, 2),

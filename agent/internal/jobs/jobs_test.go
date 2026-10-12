@@ -112,7 +112,7 @@ time.sleep(300)
 	p := provision.New(root, "nvidia", f, func() (provision.LineSink, error) { return agentLog, nil }, nil)
 	g := &gpu.Stub{GPUs: []gpu.GPU{{Index: 0, Model: "GB10", Vendor: "nvidia"}}}
 
-	m := NewManager(root, "n1", sender, g, f, p, agentLog, agentlog.NewRedactor(root, nil), 8)
+	m := NewManager(root, "n1", sender, g, f, p, agentLog, agentlog.NewRedactor(root, nil), NewRingBuffer(8<<20))
 
 	if _, _, err := p.Provision(context.Background(), protocol.Provision{Engine: "fake", Version: "0.1"}); err != nil {
 		t.Fatalf("provision: %v", err)
