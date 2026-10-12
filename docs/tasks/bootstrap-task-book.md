@@ -14,6 +14,11 @@
   - `docs/design/engine-process-contract.md`
   - `docs/design/metering-and-billing.md`
   - `docs/design/environment-provisioning.md`
+  - `docs/design/authz-and-pools.md`
+  - `docs/design/job-lifecycle.md`
+  - `docs/design/data-model.md`
+- API specs:
+  - `docs/api/protocol-v1.md`（协议字段级权威定义）
 - Sub task books:
   - `docs/tasks/agent-server-phase12-task-book.md`（Phase 1+2 细化，2026-10-12）
 
@@ -74,7 +79,9 @@ vendor patched 引擎源码（进程边界标准化），
 - Outputs: sd-scripts wrapper + `engine.toml`；进度/artifact/error 帧规范落地；
   单卡/多卡（本机 accelerate）拉起。
 - Validation: 真实训练任务指标流完整到达 server；SIGTERM 优雅停止有 checkpoint。
-- 后续引擎按难度排队：musubi-tuner → anima-lora → ai-toolkit → diffsynth-studio。
+- 后续引擎按难度排队：musubi-tuner → anima-lora → ai-toolkit →
+  diffsynth-studio；推理类引擎 tagger / tag-translation 同走进程契约
+  （打标/翻译也是引擎任务），排在 sd-scripts 模板验证之后。
 
 ### Phase 4: 计量计费
 
