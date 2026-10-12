@@ -25,6 +25,11 @@ const grantDatasetForm = reactive({ datasetId: "", grant: true })
 
 async function refresh() {
   pools.value = await poolsApi.list()
+  nodes.value = await nodesApi.list()
+}
+
+function nodeName(id: string): string {
+  return nodes.value.find((n) => n.node_id === id)?.hostname || id.slice(0, 8)
 }
 
 async function onCreate() {
@@ -100,6 +105,12 @@ onMounted(refresh)
     </div>
     <el-table :data="pools">
       <el-table-column :label="t('app.name')" prop="name" />
+      <el-table-column :label="t('nav.nodes')">
+        <template #default="{ row }">
+          <span v-if="row.nodes?.length">{{ row.nodes.map(nodeName).join(", ") }}</span>
+          <span v-else class="empty">-</span>
+        </template>
+      </el-table-column>
       <el-table-column :label="t('admin.autoCreated')" width="120">
         <template #default="{ row }">
           <el-tag v-if="row.auto_created" type="warning">auto</el-tag>

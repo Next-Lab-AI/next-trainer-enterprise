@@ -1,30 +1,80 @@
 <script setup lang="ts">
 import { ElMessage } from "element-plus"
-import { onMounted, reactive, ref } from "vue"
+import { computed, onMounted, reactive, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 
-import { datasetsApi, jobsApi, poolsApi } from "../api/resources"
-import type { Dataset, Pool } from "../api/types"
+import { datasetsApi, jobsApi, nodesApi, poolsApi } from "../api/resources"
+import type { Dataset, Node, Pool } from "../api/types"
 
 const { t } = useI18n()
 const router = useRouter()
 
 const pools = ref<Pool[]>([])
 const datasets = ref<Dataset[]>([])
+const nodes = ref<Node[]>([])
 const submitting = ref(false)
 
 const form = reactive({
   poolId: "",
-  engine: "next-integrated",
+  engine: "",
   engineVersion: "",
   datasetIds: [] as string[],
   gpus: 1,
   gpuModel: "",
 })
 
+// 池内在线节点
+const poolNodes = computed(() => nodes.value.filter((n) => n.online && n.pools.includes(form.poolId)))
+
+// 引擎注册表：池内在线节点上报的 ready 引擎（name@version）
+const engineOptions = computed(() => {
+  const seen = new Map<string, { name: string; version: string }>()
+  for (const n of poolNodes.value) {
+    for (const e of n.engines ?? []) {
+      if (e.ready) seen.set(`${e.name}@${e.version}`, { name: e.name, version: e.version })
+    }
+  }
+  return [...seen.values()]
+})
+
+// 能跑当前引擎的节点
+const engineNodes = computed(() =>
+  poolNodes.value.filter((n) =>
+    (n.engines ?? []).some((e) => e.ready && e.name === form.engine && (!form.engineVersion || e.version === form.engineVersion)),
+  ),
+)
+
+// 当前引擎在池内节点上支持的能力（模型类型）并集
+const capabilityOptions = computed(() => {
+  const caps = new Set<string>()
+  for (const n of engineNodes.value) {
+    for (const e of n.engines ?? []) {
+      if (e.ready && e.name === form.engine) for (const c of e.capabilities ?? []) caps.add(c)
+    }
+  }
+  return [...caps]
+})
+
+// 选定模型类型后的可用节点
+const eligibleNodes = computed(() =>
+  engineNodes.value.filter(
+    (n) =>
+      !ni.modelType ||
+      (n.engines ?? []).some((e) => e.ready && e.name === form.engine && (e.capabilities ?? []).includes(ni.modelType)),
+  ),
+)
+
+const gpuModelOptions = computed(() => {
+  const models = new Set<string>()
+  for (const n of eligibleNodes.value) for (const g of n.gpus ?? []) models.add(g.model)
+  return [...models]
+})
+
+const maxGpus = computed(() => Math.max(1, ...eligibleNodes.value.map((n) => (n.gpus ?? []).length)))
+
 const ni = reactive({
-  modelType: "sdxl",
+  modelType: "",
   pretrainedModel: "",
   trainDataDir: "",
   resolution: 1024,
@@ -35,6 +85,32 @@ const ni = reactive({
   networkDim: 8,
   networkAlpha: 8,
   seed: 42,
+})
+
+// 池变化时重置下游选择
+watch(
+  () => form.poolId,
+  () => {
+    form.engine = ""
+    form.engineVersion = ""
+  },
+)
+watch(engineOptions, (opts) => {
+  if (!form.engine && opts.length > 0) {
+    form.engine = opts[0].name
+    form.engineVersion = opts[0].version
+  }
+})
+watch(
+  () => form.engine,
+  (eng) => {
+    const opt = engineOptions.value.find((o) => o.name === eng)
+    form.engineVersion = opt?.version ?? ""
+    if (eng !== "next-integrated") ni.modelType = ""
+  },
+)
+watch(capabilityOptions, (caps) => {
+  if (form.engine === "next-integrated" && !caps.includes(ni.modelType)) ni.modelType = caps[0] ?? ""
 })
 
 const params = ref<{ key: string; value: string }[]>([])
@@ -96,6 +172,7 @@ onMounted(async () => {
   try {
     pools.value = await poolsApi.list()
     datasets.value = await datasetsApi.list()
+    nodes.value = await nodesApi.list()
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : String(err))
   }
@@ -112,13 +189,19 @@ onMounted(async () => {
         </el-select>
       </el-form-item>
       <el-form-item :label="t('jobs.engine')">
-        <el-select v-model="form.engine">
-          <el-option label="next-integrated" value="next-integrated" />
-          <el-option label="sd-scripts" value="sd-scripts" />
+        <el-select v-model="form.engine" :disabled="!form.poolId" :placeholder="t('jobs.enginePlaceholder')">
+          <el-option
+            v-for="o in engineOptions"
+            :key="`${o.name}@${o.version}`"
+            :label="`${o.name}@${o.version}`"
+            :value="o.name"
+          />
         </el-select>
+        <span v-if="form.poolId && engineOptions.length === 0" class="hint">{{ t("jobs.noEngineInPool") }}</span>
       </el-form-item>
-      <el-form-item :label="t('jobs.engineVersion')">
-        <el-input v-model="form.engineVersion" />
+      <el-form-item v-if="form.engine" :label="t('jobs.eligibleNodes')">
+        <span v-if="eligibleNodes.length">{{ eligibleNodes.map((n) => n.hostname).join(", ") }}</span>
+        <span v-else class="hint">{{ t("jobs.noEligibleNodes") }}</span>
       </el-form-item>
       <el-form-item :label="t('jobs.datasets')">
         <el-select v-model="form.datasetIds" multiple>
@@ -131,17 +214,18 @@ onMounted(async () => {
         </el-select>
       </el-form-item>
       <el-form-item :label="t('jobs.gpus')">
-        <el-input-number v-model="form.gpus" :min="1" :max="8" />
+        <el-input-number v-model="form.gpus" :min="1" :max="maxGpus" />
       </el-form-item>
       <el-form-item :label="t('jobs.gpuModel')">
-        <el-input v-model="form.gpuModel" />
+        <el-select v-model="form.gpuModel" clearable style="width: 280px">
+          <el-option v-for="m in gpuModelOptions" :key="m" :label="m" :value="m" />
+        </el-select>
       </el-form-item>
 
       <template v-if="form.engine === 'next-integrated'">
         <el-form-item :label="t('jobs.modelType')">
           <el-select v-model="ni.modelType" style="width: 200px">
-            <el-option label="SDXL" value="sdxl" />
-            <el-option label="SD1.5" value="sd15" />
+            <el-option v-for="c in capabilityOptions" :key="c" :label="c" :value="c" />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('jobs.pretrainedModel')">
@@ -193,7 +277,12 @@ onMounted(async () => {
       </el-form-item>
 
       <el-form-item>
-        <el-button type="primary" :loading="submitting" :disabled="!form.poolId" @click="onSubmit">
+        <el-button
+          type="primary"
+          :loading="submitting"
+          :disabled="!form.poolId || !form.engine || eligibleNodes.length === 0"
+          @click="onSubmit"
+        >
           {{ t("app.submit") }}
         </el-button>
       </el-form-item>
@@ -210,5 +299,10 @@ onMounted(async () => {
 .param-row {
   display: flex;
   gap: 8px;
+}
+.hint {
+  margin-left: 12px;
+  color: var(--el-color-warning);
+  font-size: 12px;
 }
 </style>

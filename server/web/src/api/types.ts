@@ -21,6 +21,14 @@ export interface Node {
   online: boolean
   pools: string[]
   base_envs?: BaseEnv[]
+  engines: EngineInfo[]
+}
+
+export interface EngineInfo {
+  name: string
+  version: string
+  capabilities?: string[]
+  ready: boolean
 }
 
 export interface GpuInfo {
@@ -42,6 +50,7 @@ export interface Pool {
   name: string
   auto_created: boolean
   created_at: number
+  nodes: string[]
 }
 
 export interface Job {
