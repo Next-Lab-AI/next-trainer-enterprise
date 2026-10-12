@@ -208,14 +208,14 @@ func TestPoolAndJobFlow(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("submit: %d %s", rec.Code, rec.Body)
 	}
-	var job store.Job
+	var job jobOut
 	json.Unmarshal(rec.Body.Bytes(), &job)
 	if job.Status != store.JobStatusQueued {
 		t.Fatalf("job: %+v", job)
 	}
 
 	rec = fx.do(t, "GET", "/api/jobs", userTok, nil)
-	var list []store.Job
+	var list []jobOut
 	json.Unmarshal(rec.Body.Bytes(), &list)
 	if len(list) != 1 {
 		t.Fatalf("list: %d", len(list))

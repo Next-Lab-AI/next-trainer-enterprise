@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -9,6 +10,34 @@ import (
 	"github.com/Next-Lab-AI/next-trainer-enterprise/server/internal/jobs"
 	"github.com/Next-Lab-AI/next-trainer-enterprise/server/internal/store"
 )
+
+type jobOut struct {
+	JobID         string          `json:"job_id"`
+	UserID        string          `json:"user_id"`
+	PoolID        string          `json:"pool_id"`
+	NodeID        string          `json:"node_id"`
+	Engine        string          `json:"engine"`
+	EngineVersion string          `json:"engine_version"`
+	ConfigTOML    string          `json:"config_toml"`
+	Assets        json.RawMessage `json:"assets"`
+	GPUs          json.RawMessage `json:"gpus"`
+	Status        string          `json:"status"`
+	ExitCode      *int64          `json:"exit_code"`
+	Request       json.RawMessage `json:"request"`
+	CreatedAt     int64           `json:"created_at"`
+	StartedAt     *int64          `json:"started_at"`
+	EndedAt       *int64          `json:"ended_at"`
+}
+
+func jobDTO(j *store.Job) jobOut {
+	return jobOut{
+		JobID: j.JobID, UserID: j.UserID, PoolID: j.PoolID, NodeID: j.NodeID,
+		Engine: j.Engine, EngineVersion: j.EngineVersion, ConfigTOML: j.ConfigTOML,
+		Assets: rawOr(j.Assets, "[]"), GPUs: rawOr(j.GPUs, "[]"), Request: rawOr(j.Request, "null"),
+		Status: j.Status, ExitCode: j.ExitCode,
+		CreatedAt: j.CreatedAt, StartedAt: j.StartedAt, EndedAt: j.EndedAt,
+	}
+}
 
 func (s *Server) handleListPools(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFrom(r.Context())
@@ -35,7 +64,7 @@ func (s *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, statusOf(err), err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, job)
+	writeJSON(w, http.StatusCreated, jobDTO(job))
 }
 
 func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
@@ -54,10 +83,11 @@ func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	if list == nil {
-		list = []*store.Job{}
+	out := make([]jobOut, 0, len(list))
+	for _, j := range list {
+		out = append(out, jobDTO(j))
 	}
-	writeJSON(w, http.StatusOK, list)
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) getJobChecked(w http.ResponseWriter, r *http.Request) *store.Job {
@@ -82,7 +112,7 @@ func (s *Server) handleGetJob(w http.ResponseWriter, r *http.Request) {
 	if job == nil {
 		return
 	}
-	writeJSON(w, http.StatusOK, job)
+	writeJSON(w, http.StatusOK, jobDTO(job))
 }
 
 func (s *Server) handleStopJob(w http.ResponseWriter, r *http.Request) {

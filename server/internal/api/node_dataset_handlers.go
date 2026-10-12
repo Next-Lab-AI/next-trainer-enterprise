@@ -12,10 +12,26 @@ import (
 )
 
 type nodeOut struct {
-	*store.Node
-	Online   bool            `json:"online"`
-	Pools    []string        `json:"pools"`
-	BaseEnvs json.RawMessage `json:"base_envs,omitempty"`
+	NodeID          string          `json:"node_id"`
+	Hostname        string          `json:"hostname"`
+	Description     string          `json:"description"`
+	AgentVersion    string          `json:"agent_version"`
+	ProtocolVersion string          `json:"protocol_version"`
+	Labels          json.RawMessage `json:"labels"`
+	GPUs            json.RawMessage `json:"gpus"`
+	Status          string          `json:"status"`
+	FirstSeen       int64           `json:"first_seen"`
+	LastSeen        int64           `json:"last_seen"`
+	Online          bool            `json:"online"`
+	Pools           []string        `json:"pools"`
+	BaseEnvs        json.RawMessage `json:"base_envs,omitempty"`
+}
+
+func rawOr(b []byte, def string) json.RawMessage {
+	if len(b) == 0 {
+		return json.RawMessage(def)
+	}
+	return json.RawMessage(b)
 }
 
 func (s *Server) decorateNode(r *http.Request, n *store.Node) nodeOut {
@@ -24,7 +40,21 @@ func (s *Server) decorateNode(r *http.Request, n *store.Node) nodeOut {
 		pools = []string{}
 	}
 	envs, _ := json.Marshal(s.hub.BaseEnvs(n.NodeID))
-	return nodeOut{Node: n, Online: s.hub.Online(n.NodeID), Pools: pools, BaseEnvs: envs}
+	return nodeOut{
+		NodeID:          n.NodeID,
+		Hostname:        n.Hostname,
+		Description:     n.Description,
+		AgentVersion:    n.AgentVersion,
+		ProtocolVersion: n.ProtocolVersion,
+		Labels:          rawOr(n.Labels, "null"),
+		GPUs:            rawOr(n.GPUs, "[]"),
+		Status:          n.Status,
+		FirstSeen:       n.FirstSeen,
+		LastSeen:        n.LastSeen,
+		Online:          s.hub.Online(n.NodeID),
+		Pools:           pools,
+		BaseEnvs:        envs,
+	}
 }
 
 func (s *Server) handleListNodes(w http.ResponseWriter, r *http.Request) {
