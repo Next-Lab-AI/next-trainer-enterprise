@@ -99,6 +99,19 @@ func (s *Service) Submit(ctx context.Context, user *store.User, req SubmitReques
 		return nil, ErrForbidden
 	}
 	jobID := store.NewID()
+	// ToB：训练数据只能来自挂载的数据集，用户不得自填数据目录
+	delete(req.Params, "train_data_dir")
+	delete(req.Params, "reg_data_dir")
+	if len(req.DatasetIDs) > 0 {
+		d0, err := s.st.Datasets().Get(ctx, req.DatasetIDs[0])
+		if err != nil {
+			return nil, fmt.Errorf("%w: unknown dataset %s", ErrBadRequest, req.DatasetIDs[0])
+		}
+		if req.Params == nil {
+			req.Params = engines.Params{}
+		}
+		req.Params["train_data_dir"] = "datasets/" + d0.Name
+	}
 	cfgTOML, err := engines.Render(req.Engine, req.EngineVersion, req.Params, jobID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrBadRequest, err)
@@ -138,12 +151,16 @@ func (s *Service) buildAssets(ctx context.Context, datasetIDs []string) ([]proto
 		if d.Backend == store.BackendLocal {
 			uri = strings.TrimSuffix(s.cfg.HTTPBase, "/") + "/datasets/" + d.DatasetID
 		}
-		out = append(out, protocol.Asset{
+		a := protocol.Asset{
 			URI:    uri,
 			Dest:   "datasets/" + d.Name,
 			SHA256: d.SHA256,
 			Size:   d.SizeBytes,
-		})
+		}
+		if d.EncAlgo != "" {
+			a.Enc = &protocol.EncSpec{Algo: d.EncAlgo, Key: d.EncKey}
+		}
+		out = append(out, a)
 	}
 	return out, nil
 }

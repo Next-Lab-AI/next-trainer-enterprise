@@ -40,6 +40,7 @@ function toggleLocale() {
         <el-menu-item index="/jobs">{{ t("nav.jobs") }}</el-menu-item>
         <el-menu-item index="/jobs/submit">{{ t("nav.submitJob") }}</el-menu-item>
         <el-menu-item index="/datasets">{{ t("nav.datasets") }}</el-menu-item>
+        <el-menu-item index="/artifacts">{{ t("nav.artifacts") }}</el-menu-item>
         <template v-if="isAdmin">
           <el-menu-item index="/admin/users">{{ t("nav.adminUsers") }}</el-menu-item>
           <el-menu-item index="/admin/pools">{{ t("nav.adminPools") }}</el-menu-item>

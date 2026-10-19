@@ -45,7 +45,7 @@ func (s *Service) backend(name string) (Backend, error) {
 }
 
 func validUploadKind(kind string) bool {
-	return kind == store.DatasetKindDataset || kind == store.DatasetKindEngine
+	return kind == store.DatasetKindDataset
 }
 
 func sanitizeName(name string) string {
@@ -57,9 +57,18 @@ func sanitizeName(name string) string {
 	return name
 }
 
-func (s *Service) Upload(ctx context.Context, userID, name, version, kind, backendName, filename string, r io.Reader) (*store.Dataset, error) {
+// EncAlgoAESZip marks datasets stored as a password-protected zip (WinZip
+// AES-256). The key is kept in the DB and handed to the agent at dispatch.
+const EncAlgoAESZip = "zip-aes256"
+
+func (s *Service) Upload(ctx context.Context, userID, name, version, kind, backendName, filename, encAlgo, encKey string, r io.Reader) (*store.Dataset, error) {
 	if !validUploadKind(kind) {
 		return nil, ErrBadKind
+	}
+	if encKey == "" {
+		encAlgo = ""
+	} else if encAlgo == "" {
+		encAlgo = EncAlgoAESZip
 	}
 	if backendName == "" {
 		backendName = store.BackendLocal
@@ -77,7 +86,7 @@ func (s *Service) Upload(ctx context.Context, userID, name, version, kind, backe
 	d := &store.Dataset{
 		DatasetID: id, Name: name, Version: version, Kind: kind,
 		Backend: backendName, URI: relURI, SHA256: sum, SizeBytes: size,
-		CreatedBy: userID, CreatedAt: s.now(),
+		CreatedBy: userID, CreatedAt: s.now(), EncAlgo: encAlgo, EncKey: encKey,
 	}
 	if err := s.st.Datasets().Create(ctx, d); err != nil {
 		b.Delete(ctx, relURI)
@@ -116,6 +125,35 @@ func (s *Service) CanAgentDownload(ctx context.Context, datasetID, jobID string)
 	}
 	for _, p := range poolsOfDataset {
 		if p == job.PoolID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *Service) ListArtifacts(ctx context.Context, jobID string) ([]*store.Dataset, error) {
+	return s.st.Datasets().ListByJob(ctx, jobID)
+}
+
+// CanUserDownload: admin 或（用户所在池 ∩ 数据集授权池）非空。
+func (s *Service) CanUserDownload(ctx context.Context, user *store.User, datasetID string) (bool, error) {
+	if user.Role == store.RoleAdmin {
+		return true, nil
+	}
+	userPools, err := s.st.Pools().PoolsOfUser(ctx, user.ID)
+	if err != nil {
+		return false, err
+	}
+	dsPools, err := s.st.Pools().PoolsOfDataset(ctx, datasetID)
+	if err != nil {
+		return false, err
+	}
+	set := map[string]bool{}
+	for _, p := range userPools {
+		set[p] = true
+	}
+	for _, p := range dsPools {
+		if set[p] {
 			return true, nil
 		}
 	}

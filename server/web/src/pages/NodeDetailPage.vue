@@ -5,7 +5,7 @@ import { useI18n } from "vue-i18n"
 import { useRoute } from "vue-router"
 
 import { nodesApi, type ProvisionRequest } from "../api/resources"
-import type { BaseEnv, GpuInfo, Node } from "../api/types"
+import type { BaseEnv, EngineInfo, GpuInfo, Node } from "../api/types"
 import { useAuthStore } from "../stores/auth"
 import { formatBytes, formatTime } from "../utils/format"
 
@@ -17,10 +17,8 @@ const node = ref<Node | null>(null)
 const isAdmin = computed(() => auth.user?.role === "admin")
 const provisionVisible = ref(false)
 const provisionForm = reactive({
-  engine: "sd-scripts",
+  engine: "",
   version: "",
-  uri: "",
-  sha256: "",
   envMode: "venv",
   basePython: "",
 })
@@ -30,6 +28,11 @@ const id = computed(() => String(route.params.id))
 const gpus = computed<GpuInfo[]>(() => node.value?.gpus ?? [])
 
 const baseEnvs = computed<BaseEnv[]>(() => node.value?.base_envs ?? [])
+
+const stagedEngines = computed<EngineInfo[]>(() => node.value?.engines ?? [])
+const stagedVersions = computed(() =>
+  stagedEngines.value.filter((e) => e.name === provisionForm.engine).map((e) => e.version),
+)
 
 const labels = computed<Record<string, string>>(() => node.value?.labels ?? {})
 
@@ -57,7 +60,6 @@ async function onProvision() {
   const req: ProvisionRequest = {
     engine: provisionForm.engine,
     version: provisionForm.version,
-    package: { uri: provisionForm.uri, sha256: provisionForm.sha256 },
   }
   if (provisionForm.envMode === "external") {
     req.env_mode = "external"
@@ -125,18 +127,14 @@ onMounted(async () => {
     <el-dialog v-model="provisionVisible" :title="t('nodes.provision')" width="560px">
       <el-form label-width="140px">
         <el-form-item :label="t('jobs.engine')">
-          <el-select v-model="provisionForm.engine">
-            <el-option label="sd-scripts" value="sd-scripts" />
+          <el-select v-model="provisionForm.engine" @change="provisionForm.version = ''">
+            <el-option v-for="e in stagedEngines" :key="e.name" :label="e.name" :value="e.name" />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('jobs.engineVersion')">
-          <el-input v-model="provisionForm.version" />
-        </el-form-item>
-        <el-form-item label="package.uri">
-          <el-input v-model="provisionForm.uri" placeholder="https://…/engine.tar.gz" />
-        </el-form-item>
-        <el-form-item label="package.sha256">
-          <el-input v-model="provisionForm.sha256" />
+          <el-select v-model="provisionForm.version">
+            <el-option v-for="v in stagedVersions" :key="v" :label="v" :value="v" />
+          </el-select>
         </el-form-item>
         <el-form-item label="env_mode">
           <el-select v-model="provisionForm.envMode">

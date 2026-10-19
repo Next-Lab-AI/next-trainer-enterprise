@@ -76,7 +76,6 @@ const maxGpus = computed(() => Math.max(1, ...eligibleNodes.value.map((n) => (n.
 const ni = reactive({
   modelType: "",
   pretrainedModel: "",
-  trainDataDir: "",
   resolution: 1024,
   batchSize: 1,
   maxSteps: 100,
@@ -137,7 +136,6 @@ async function onSubmit() {
     if (form.engine === "next-integrated") {
       p.model_type = ni.modelType
       if (ni.pretrainedModel) p.pretrained_model = ni.pretrainedModel
-      if (ni.trainDataDir) p.train_data_dir = ni.trainDataDir
       p.resolution = ni.resolution
       p.batch_size = ni.batchSize
       p.max_steps = ni.maxSteps
@@ -230,9 +228,6 @@ onMounted(async () => {
         </el-form-item>
         <el-form-item :label="t('jobs.pretrainedModel')">
           <el-input v-model="ni.pretrainedModel" placeholder="/path/to/base.safetensors" />
-        </el-form-item>
-        <el-form-item :label="t('jobs.trainDataDir')">
-          <el-input v-model="ni.trainDataDir" placeholder="/path/to/dataset" />
         </el-form-item>
         <el-form-item :label="t('jobs.resolution')">
           <el-input-number v-model="ni.resolution" :min="256" :max="2048" :step="64" />

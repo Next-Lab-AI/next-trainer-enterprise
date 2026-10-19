@@ -204,7 +204,33 @@ func TestPoolAndJobFlow(t *testing.T) {
 		t.Fatalf("grant: %d", rec.Code)
 	}
 
-	rec = fx.do(t, "POST", "/api/jobs", userTok, map[string]any{"pool_id": pool.PoolID, "engine": "sd-scripts"})
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	mw.WriteField("name", "imgs")
+	fw, _ := mw.CreateFormFile("file", "imgs.tar.gz")
+	fw.Write([]byte("fake-dataset-content"))
+	mw.Close()
+	dreq, _ := http.NewRequest("POST", fx.srv.URL+"/api/datasets", &buf)
+	dreq.Header.Set("Content-Type", mw.FormDataContentType())
+	dreq.Header.Set("Authorization", "Bearer "+adminTok)
+	dresp, err := http.DefaultClient.Do(dreq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer dresp.Body.Close()
+	if dresp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(dresp.Body)
+		t.Fatalf("upload dataset: %d %s", dresp.StatusCode, body)
+	}
+	var ds datasetOut
+	json.NewDecoder(dresp.Body).Decode(&ds)
+
+	rec = fx.do(t, "POST", "/api/pools/"+pool.PoolID+"/datasets", adminTok, map[string]any{"dataset_id": ds.DatasetID, "grant": true})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("grant dataset: %d %s", rec.Code, rec.Body)
+	}
+
+	rec = fx.do(t, "POST", "/api/jobs", userTok, map[string]any{"pool_id": pool.PoolID, "engine": "sd-scripts", "dataset_ids": []string{ds.DatasetID}})
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("submit: %d %s", rec.Code, rec.Body)
 	}

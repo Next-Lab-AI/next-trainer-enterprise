@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -39,7 +40,13 @@ func main() {
 	slog.Info("next-trainer-server", "version", version)
 
 	if *httpBase == "" {
-		*httpBase = "http://localhost" + *addr
+		host := *addr
+		if strings.HasPrefix(host, ":") {
+			host = "127.0.0.1" + host
+		} else if strings.HasPrefix(host, "0.0.0.0:") {
+			host = "127.0.0.1:" + strings.TrimPrefix(host, "0.0.0.0:")
+		}
+		*httpBase = "http://" + host
 	}
 
 	if err := os.MkdirAll(*dataRoot, 0o755); err != nil {
@@ -74,6 +81,7 @@ func main() {
 	datasetsSvc := datasets.New(st, localBackend)
 
 	apiSrv := api.New(st, authSvc, poolsSvc, jobsSvc, datasetsSvc, hub)
+	apiSrv.SetUploads(datasets.NewUploadManager(*dataRoot, datasetsSvc))
 	apiSrv.LogDir = logDir
 
 	srv := &http.Server{

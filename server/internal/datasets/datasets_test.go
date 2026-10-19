@@ -33,7 +33,7 @@ func TestUploadDownloadRoundtrip(t *testing.T) {
 	content := "hello dataset"
 	sum := sha256.Sum256([]byte(content))
 
-	d, err := svc.Upload(ctx, "admin", "imgs", "v1", store.DatasetKindDataset, "", "imgs.tar.gz", strings.NewReader(content))
+	d, err := svc.Upload(ctx, "admin", "imgs", "v1", store.DatasetKindDataset, "", "imgs.tar.gz", "", "", strings.NewReader(content))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestUploadDownloadRoundtrip(t *testing.T) {
 func TestUploadBadKind(t *testing.T) {
 	ctx := context.Background()
 	svc, _, _ := newService(t)
-	if _, err := svc.Upload(ctx, "admin", "x", "", "artifact", "", "f", strings.NewReader("x")); !errors.Is(err, ErrBadKind) {
+	if _, err := svc.Upload(ctx, "admin", "x", "", "artifact", "", "f", "", "", strings.NewReader("x")); !errors.Is(err, ErrBadKind) {
 		t.Fatalf("artifact via upload: %v", err)
 	}
 }
@@ -68,7 +68,7 @@ func TestUploadBadKind(t *testing.T) {
 func TestSoftDelete(t *testing.T) {
 	ctx := context.Background()
 	svc, st, _ := newService(t)
-	d, _ := svc.Upload(ctx, "admin", "imgs", "", store.DatasetKindDataset, "", "f.bin", strings.NewReader("x"))
+	d, _ := svc.Upload(ctx, "admin", "imgs", "", store.DatasetKindDataset, "", "f.bin", "", "", strings.NewReader("x"))
 	if err := svc.Delete(ctx, d.DatasetID); err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestCanAgentDownload(t *testing.T) {
 	j := &store.Job{JobID: store.NewID(), UserID: u.ID, PoolID: p.PoolID,
 		Engine: "sd-scripts", ConfigTOML: "x=1", Status: store.JobStatusRunning, CreatedAt: 1}
 	st.Jobs().CreateJob(ctx, j)
-	d, _ := svc.Upload(ctx, u.ID, "imgs", "", store.DatasetKindDataset, "", "f", strings.NewReader("x"))
+	d, _ := svc.Upload(ctx, u.ID, "imgs", "", store.DatasetKindDataset, "", "f", "", "", strings.NewReader("x"))
 
 	ok, err := svc.CanAgentDownload(ctx, d.DatasetID, j.JobID)
 	if err != nil || ok {

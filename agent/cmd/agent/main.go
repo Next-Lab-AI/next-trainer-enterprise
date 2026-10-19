@@ -108,7 +108,7 @@ func main() {
 	}, identity.LastSeq)
 
 	prov := provision.New(cfg.Root, gpuVendor(ctx, g), fetcher, func() (provision.LineSink, error) { return agentLog, nil }, baseEnvs)
-	mgr = jobs.NewManager(cfg.Root, identity.NodeID, senderAdapter{c}, g, fetcher, prov, agentLog, redact, buf)
+	mgr = jobs.NewManager(cfg.Root, identity.NodeID, senderAdapter{c}, g, fetcher, prov, agentLog, redact, buf, cfg.AllowPaths...)
 	mgr.Start(ctx, 10*time.Second)
 	mgr.Reconcile(ctx)
 

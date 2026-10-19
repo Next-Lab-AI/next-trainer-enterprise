@@ -8,7 +8,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-func ValidateConfigPaths(tomlData []byte, agentRoot string) error {
+func ValidateConfigPaths(tomlData []byte, agentRoot string, allowPaths ...string) error {
 	var doc map[string]any
 	if err := toml.Unmarshal(tomlData, &doc); err != nil {
 		return fmt.Errorf("exec: config toml parse: %w", err)
@@ -18,11 +18,16 @@ func ValidateConfigPaths(tomlData []byte, agentRoot string) error {
 			return nil
 		}
 		if filepath.IsAbs(val) {
-			rel, err := filepath.Rel(agentRoot, filepath.Clean(val))
-			if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-				return fmt.Errorf("exec: config path %q (%s) escapes agent root", val, key)
+			clean := filepath.Clean(val)
+			if underDir(agentRoot, clean) {
+				return nil
 			}
-			return nil
+			for _, allow := range allowPaths {
+				if underDir(allow, clean) {
+					return nil
+				}
+			}
+			return fmt.Errorf("exec: config path %q (%s) escapes agent root", val, key)
 		}
 		for _, seg := range strings.Split(filepath.ToSlash(val), "/") {
 			if seg == ".." {
@@ -31,6 +36,14 @@ func ValidateConfigPaths(tomlData []byte, agentRoot string) error {
 		}
 		return nil
 	})
+}
+
+func underDir(dir, path string) bool {
+	rel, err := filepath.Rel(dir, path)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func looksLikePath(s string) bool {

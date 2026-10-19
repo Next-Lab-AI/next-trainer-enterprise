@@ -65,7 +65,7 @@ func (m *Manager) runJob(ctx context.Context, job *Job) {
 		m.failJob(job, "io", err.Error())
 		return
 	}
-	if err := agentexec.ValidateConfigPaths([]byte(job.Start.ConfigTOML), m.root); err != nil {
+	if err := agentexec.ValidateConfigPaths([]byte(job.Start.ConfigTOML), m.root, m.allowPaths...); err != nil {
 		m.failJob(job, "config_invalid", err.Error())
 		return
 	}
@@ -141,7 +141,16 @@ func (m *Manager) linkAssets(job *Job) bool {
 			m.failJob(job, "asset_missing", a.URI)
 			return false
 		}
-		if _, err := fetch.LinkIntoJob(cachePath, m.jobDir(job.ID), a.Dest); err != nil {
+		src := cachePath
+		if a.Enc != nil {
+			dir, err := m.fetcher.EnsureUnpacked(a.URI, a.SHA256, a.Enc.Key)
+			if err != nil {
+				m.failJob(job, "asset_unpack", err.Error())
+				return false
+			}
+			src = dir
+		}
+		if _, err := fetch.LinkIntoJob(src, m.jobDir(job.ID), a.Dest); err != nil {
 			m.failJob(job, "asset_link", err.Error())
 			return false
 		}

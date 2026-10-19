@@ -60,23 +60,26 @@ type Manager struct {
 	seenCmds map[string]bool
 
 	maintSem chan struct{}
+
+	allowPaths []string
 	logSink  *logSink
 }
 
-func NewManager(root, nodeID string, sender Sender, g gpu.Interface, f *fetch.Fetcher, p *provision.Provisioner, agentLog *agentlog.Logger, redact *agentlog.Redactor, buf *RingBuffer) *Manager {
+func NewManager(root, nodeID string, sender Sender, g gpu.Interface, f *fetch.Fetcher, p *provision.Provisioner, agentLog *agentlog.Logger, redact *agentlog.Redactor, buf *RingBuffer, allowPaths ...string) *Manager {
 	m := &Manager{
-		root:     root,
-		nodeID:   nodeID,
-		sender:   sender,
-		gpu:      g,
-		fetcher:  f,
-		prov:     p,
-		redact:   redact,
-		agentLog: agentLog,
-		Buffer:   buf,
-		jobs:     map[string]*Job{},
-		seenCmds: map[string]bool{},
-		maintSem: make(chan struct{}, 2),
+		root:       root,
+		nodeID:     nodeID,
+		sender:     sender,
+		gpu:        g,
+		fetcher:    f,
+		prov:       p,
+		redact:     redact,
+		agentLog:   agentLog,
+		Buffer:     buf,
+		allowPaths: allowPaths,
+		jobs:       map[string]*Job{},
+		seenCmds:   map[string]bool{},
+		maintSem:   make(chan struct{}, 2),
 	}
 	m.logSink = newLogSink(m)
 	return m

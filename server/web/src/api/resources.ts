@@ -25,7 +25,7 @@ export const nodesApi = {
 export interface ProvisionRequest {
   engine: string
   version: string
-  package: { uri: string; sha256: string; size?: number }
+  package?: { uri: string; sha256: string; size?: number }
   constraints?: string
   env_mode?: string
   base_python?: string
@@ -77,18 +77,79 @@ export const jobsApi = {
   kill: (id: string) => apiRequest(`/api/jobs/${encodeURIComponent(id)}/kill`, { method: "POST", body: "{}" }),
   events: (id: string, afterSeq = 0) =>
     apiRequest<JobEvent[]>(`/api/jobs/${encodeURIComponent(id)}/events?after_seq=${afterSeq}`),
+  artifacts: (id: string) => apiRequest<Dataset[]>(`/api/jobs/${encodeURIComponent(id)}/artifacts`),
   logsUrl: (id: string) => `/api/jobs/${encodeURIComponent(id)}/logs/stream`,
 }
 
 export const datasetsApi = {
-  list: () => apiRequest<Dataset[]>("/api/datasets"),
-  upload: (file: File, name: string, kind: string, version?: string) => {
+  list: (kind?: string) => apiRequest<Dataset[]>(`/api/datasets${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`),
+  upload: (file: Blob, filename: string, name: string, version?: string, encKey?: string) => {
     const form = new FormData()
     form.append("name", name)
-    form.append("kind", kind)
     if (version) form.append("version", version)
-    form.append("file", file)
+    if (encKey) {
+      form.append("enc_algo", "zip-aes256")
+      form.append("enc_key", encKey)
+    }
+    form.append("file", file, filename)
     return apiRequest<Dataset>("/api/datasets", { method: "POST", body: form })
+  },
+  uploadChunked: async (
+    blob: Blob,
+    filename: string,
+    name: string,
+    version?: string,
+    encKey?: string,
+    onProgress?: (percent: number) => void,
+    chunkSize = 8 << 20,
+    maxRetries = 3,
+  ): Promise<Dataset> => {
+    const init = await apiRequest<{ upload_id: string; received: number; size: number }>("/api/datasets/uploads", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        version: version ?? "",
+        filename,
+        enc_algo: encKey ? "zip-aes256" : "",
+        enc_key: encKey ?? "",
+        size: blob.size,
+      }),
+    })
+    let offset = init.received
+    while (offset < blob.size) {
+      const chunk = blob.slice(offset, Math.min(offset + chunkSize, blob.size))
+      let done = false
+      for (let attempt = 0; attempt < maxRetries && !done; attempt++) {
+        try {
+          const res = await apiRequest<{ received: number }>(
+            `/api/datasets/uploads/${init.upload_id}/chunk?offset=${offset}`,
+            { method: "PUT", body: chunk },
+          )
+          offset = res.received
+          done = true
+        } catch (err) {
+          if (attempt === maxRetries - 1) throw err
+        }
+      }
+      onProgress?.((offset / blob.size) * 100)
+    }
+    return apiRequest<Dataset>(`/api/datasets/uploads/${init.upload_id}/complete`, { method: "POST", body: "{}" })
+  },
+  download: async (id: string) => {
+    const { getAuthToken } = await import("./client")
+    const resp = await fetch(`/api/datasets/${encodeURIComponent(id)}/download`, {
+      headers: { Authorization: `Bearer ${getAuthToken() ?? ""}` },
+    })
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+    const dispo = resp.headers.get("Content-Disposition") ?? ""
+    const m = dispo.match(/filename="?([^";]+)"?/)
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = m?.[1] ?? `dataset-${id}`
+    a.click()
+    URL.revokeObjectURL(url)
   },
   remove: (id: string) => apiRequest(`/api/datasets/${encodeURIComponent(id)}`, { method: "DELETE" }),
 }

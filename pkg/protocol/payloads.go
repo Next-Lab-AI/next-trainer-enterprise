@@ -57,11 +57,17 @@ type EngineInfo struct {
 	Ready        bool     `json:"ready"`
 }
 
+type EncSpec struct {
+	Algo string `json:"algo"`
+	Key  string `json:"key"`
+}
+
 type Asset struct {
-	URI    string `json:"uri"`
-	Dest   string `json:"dest,omitempty"`
-	SHA256 string `json:"sha256"`
-	Size   int64  `json:"size,omitempty"`
+	URI    string   `json:"uri"`
+	Dest   string   `json:"dest,omitempty"`
+	SHA256 string   `json:"sha256"`
+	Size   int64    `json:"size,omitempty"`
+	Enc    *EncSpec `json:"enc,omitempty"`
 }
 
 type DownloadSources struct {
