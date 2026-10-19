@@ -76,6 +76,7 @@ const maxGpus = computed(() => Math.max(1, ...eligibleNodes.value.map((n) => (n.
 const ni = reactive({
   modelType: "",
   pretrainedModel: "",
+  outputName: "",
   resolution: 1024,
   batchSize: 1,
   maxSteps: 100,
@@ -83,6 +84,10 @@ const ni = reactive({
   optimizer: "adamw",
   networkDim: 8,
   networkAlpha: 8,
+  trainTextEncoder: false,
+  maxGradNorm: 1,
+  weightDtype: "bf16",
+  gradientCheckpointing: false,
   seed: 42,
 })
 
@@ -136,6 +141,7 @@ async function onSubmit() {
     if (form.engine === "next-integrated") {
       p.model_type = ni.modelType
       if (ni.pretrainedModel) p.pretrained_model = ni.pretrainedModel
+      if (ni.outputName) p.output_name = ni.outputName
       p.resolution = ni.resolution
       p.batch_size = ni.batchSize
       p.max_steps = ni.maxSteps
@@ -143,6 +149,10 @@ async function onSubmit() {
       p.optimizer = ni.optimizer
       p.network_dim = ni.networkDim
       p.network_alpha = ni.networkAlpha
+      p.train_text_encoder = ni.trainTextEncoder
+      p.max_grad_norm = ni.maxGradNorm
+      p.weight_dtype = ni.weightDtype
+      p.gradient_checkpointing = ni.gradientCheckpointing
       p.seed = ni.seed
     }
     for (const { key, value } of params.value) {
@@ -229,6 +239,9 @@ onMounted(async () => {
         <el-form-item :label="t('jobs.pretrainedModel')">
           <el-input v-model="ni.pretrainedModel" placeholder="/path/to/base.safetensors" />
         </el-form-item>
+        <el-form-item :label="t('jobs.outputName')">
+          <el-input v-model="ni.outputName" :placeholder="t('jobs.outputNamePlaceholder')" style="width: 280px" />
+        </el-form-item>
         <el-form-item :label="t('jobs.resolution')">
           <el-input-number v-model="ni.resolution" :min="256" :max="2048" :step="64" />
         </el-form-item>
@@ -254,6 +267,22 @@ onMounted(async () => {
         </el-form-item>
         <el-form-item :label="t('jobs.networkAlpha')">
           <el-input-number v-model="ni.networkAlpha" :min="1" :max="1024" />
+        </el-form-item>
+        <el-form-item :label="t('jobs.trainTextEncoder')">
+          <el-switch v-model="ni.trainTextEncoder" />
+        </el-form-item>
+        <el-form-item :label="t('jobs.maxGradNorm')">
+          <el-input-number v-model="ni.maxGradNorm" :min="0" :max="100" :step="0.1" />
+        </el-form-item>
+        <el-form-item :label="t('jobs.weightDtype')">
+          <el-select v-model="ni.weightDtype" style="width: 200px">
+            <el-option label="bf16" value="bf16" />
+            <el-option label="fp16" value="fp16" />
+            <el-option label="fp32" value="fp32" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="t('jobs.gradientCheckpointing')">
+          <el-switch v-model="ni.gradientCheckpointing" />
         </el-form-item>
         <el-form-item :label="t('jobs.seed')">
           <el-input-number v-model="ni.seed" :min="0" />
