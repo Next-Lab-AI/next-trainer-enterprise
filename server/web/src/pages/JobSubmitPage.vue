@@ -219,7 +219,12 @@ async function applyPendingImport() {
   const p = (req.params ?? {}) as Record<string, unknown>
   if (req.engine === "next-integrated") {
     const str = (v: unknown) => (typeof v === "string" ? v : "")
-    const num = (v: unknown, d: number) => (typeof v === "number" ? v : d)
+    // learning_rate 等经 el-input 编辑后在 request 里可能是字符串，回填时也接受数字字符串
+    const num = (v: unknown, d: number) => {
+      if (typeof v === "number") return v
+      if (typeof v === "string" && v !== "" && !Number.isNaN(Number(v))) return Number(v)
+      return d
+    }
     ni.modelType = str(p.model_type)
     ni.pretrainedModel = str(p.pretrained_model)
     ni.outputName = str(p.output_name)
