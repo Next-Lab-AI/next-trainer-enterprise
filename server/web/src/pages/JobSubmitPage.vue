@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ElMessage } from "element-plus"
-import { computed, onMounted, reactive, ref, watch } from "vue"
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue"
 import { useI18n } from "vue-i18n"
 import { useRouter } from "vue-router"
 
 import { datasetsApi, jobsApi, nodesApi, poolsApi } from "../api/resources"
+import type { SubmitJobRequest } from "../api/resources"
 import type { Dataset, Node, Pool } from "../api/types"
 
 const { t } = useI18n()
@@ -176,6 +177,70 @@ async function onSubmit() {
   }
 }
 
+// “导入再训”回填：任务详情页把原始 SubmitRequest 写入 sessionStorage 后跳转过来
+const NI_PARAM_KEYS = new Set([
+  "model_type",
+  "pretrained_model",
+  "output_name",
+  "resolution",
+  "batch_size",
+  "max_steps",
+  "learning_rate",
+  "optimizer",
+  "network_dim",
+  "network_alpha",
+  "train_text_encoder",
+  "max_grad_norm",
+  "weight_dtype",
+  "gradient_checkpointing",
+  "seed",
+])
+// 服务端按所选数据集注入，不回填
+const SERVER_PARAMS = new Set(["train_data_dir", "reg_data_dir"])
+
+async function applyPendingImport() {
+  const raw = sessionStorage.getItem("ntee-pending-import")
+  if (!raw) return
+  sessionStorage.removeItem("ntee-pending-import")
+  let req: SubmitJobRequest
+  try {
+    req = JSON.parse(raw)
+  } catch {
+    return
+  }
+  form.poolId = req.pool_id ?? ""
+  await nextTick()
+  form.engine = req.engine ?? ""
+  form.engineVersion = req.engine_version ?? ""
+  await nextTick()
+  form.datasetIds = req.dataset_ids ?? []
+  form.gpus = req.gpus || 1
+  form.gpuModel = req.gpu_model ?? ""
+  const p = (req.params ?? {}) as Record<string, unknown>
+  if (req.engine === "next-integrated") {
+    const str = (v: unknown) => (typeof v === "string" ? v : "")
+    const num = (v: unknown, d: number) => (typeof v === "number" ? v : d)
+    ni.modelType = str(p.model_type)
+    ni.pretrainedModel = str(p.pretrained_model)
+    ni.outputName = str(p.output_name)
+    ni.resolution = num(p.resolution, 1024)
+    ni.batchSize = num(p.batch_size, 1)
+    ni.maxSteps = num(p.max_steps, 100)
+    ni.learningRate = num(p.learning_rate, 0.0001)
+    ni.optimizer = str(p.optimizer) || "adamw"
+    ni.networkDim = num(p.network_dim, 8)
+    ni.networkAlpha = num(p.network_alpha, 8)
+    ni.trainTextEncoder = p.train_text_encoder === true
+    ni.maxGradNorm = num(p.max_grad_norm, 1)
+    ni.weightDtype = str(p.weight_dtype) || "bf16"
+    ni.gradientCheckpointing = p.gradient_checkpointing === true
+    ni.seed = num(p.seed, 42)
+  }
+  params.value = Object.entries(p)
+    .filter(([k]) => !SERVER_PARAMS.has(k) && (req.engine !== "next-integrated" || !NI_PARAM_KEYS.has(k)))
+    .map(([k, v]) => ({ key: k, value: typeof v === "string" ? v : JSON.stringify(v) }))
+}
+
 onMounted(async () => {
   try {
     pools.value = await poolsApi.list()
@@ -184,6 +249,7 @@ onMounted(async () => {
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : String(err))
   }
+  await applyPendingImport()
 })
 </script>
 

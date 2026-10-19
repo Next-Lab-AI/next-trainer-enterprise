@@ -2,7 +2,7 @@
 import { ElMessage } from "element-plus"
 import { computed, onMounted, onUnmounted, ref } from "vue"
 import { useI18n } from "vue-i18n"
-import { useRoute } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 
 import { jobsApi } from "../api/resources"
 import type { Job, JobEvent } from "../api/types"
@@ -10,6 +10,7 @@ import { formatTime, statusTagType } from "../utils/format"
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 
 const job = ref<Job | null>(null)
 const events = ref<JobEvent[]>([])
@@ -23,6 +24,14 @@ const id = computed(() => String(route.params.id))
 
 function isActive(j: Job) {
   return ["QUEUED", "CREATED", "WAITING", "RUNNING"].includes(j.status)
+}
+
+const canImport = computed(() => !!job.value?.request)
+
+function importRetrain() {
+  if (!job.value || !canImport.value) return
+  sessionStorage.setItem("ntee-pending-import", JSON.stringify(job.value.request))
+  router.push("/jobs/submit")
 }
 
 async function refresh() {
@@ -77,6 +86,9 @@ onUnmounted(() => {
 <template>
   <div v-if="job">
     <h2>{{ t("jobs.detail") }} <el-tag :type="statusTagType(job.status)">{{ job.status }}</el-tag></h2>
+    <div class="actions">
+      <el-button type="primary" :disabled="!canImport" @click="importRetrain">{{ t("jobs.importRetrain") }}</el-button>
+    </div>
     <el-descriptions :column="2" border>
       <el-descriptions-item label="job_id">{{ job.job_id }}</el-descriptions-item>
       <el-descriptions-item :label="t('jobs.engine')">{{ job.engine }} {{ job.engine_version }}</el-descriptions-item>
@@ -112,6 +124,9 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.actions {
+  margin-bottom: 12px;
+}
 .log-box {
   background: #111;
   color: #d4d4d4;

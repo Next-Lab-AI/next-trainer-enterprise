@@ -87,6 +87,7 @@ export default {
     weightDtype: "Weight Dtype",
     gradientCheckpointing: "Gradient Checkpointing",
     seed: "Seed",
+    importRetrain: "Import & Retrain",
     stop: "Stop",
     preempt: "Preempt",
     kill: "Kill",

@@ -65,7 +65,7 @@ export interface Job {
   gpus: string
   status: string
   exit_code: number | null
-  request: string
+  request: Record<string, unknown> | null
   created_at: number
   started_at: number | null
   ended_at: number | null

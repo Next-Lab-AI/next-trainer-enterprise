@@ -87,6 +87,7 @@ export default {
     weightDtype: "权重精度",
     gradientCheckpointing: "梯度检查点（省显存）",
     seed: "随机种子",
+    importRetrain: "导入再训",
     stop: "停止",
     preempt: "抢占",
     kill: "强杀",
