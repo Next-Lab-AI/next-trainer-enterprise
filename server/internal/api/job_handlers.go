@@ -168,8 +168,25 @@ func (s *Server) handleJobEvents(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err)
 		return
 	}
-	if evs == nil {
-		evs = []*store.Event{}
+	out := make([]eventOut, 0, len(evs))
+	for _, e := range evs {
+		out = append(out, eventOut{
+			Seq: e.Seq, NodeID: e.NodeID, JobID: e.JobID, Type: e.Type,
+			Payload: string(e.Payload), ServerTS: e.ServerTS,
+			AgentSeq: e.AgentSeq, ElapsedS: e.ElapsedS, Gap: e.Gap,
+		})
 	}
-	writeJSON(w, http.StatusOK, evs)
+	writeJSON(w, http.StatusOK, out)
+}
+
+type eventOut struct {
+	Seq      int64  `json:"seq"`
+	NodeID   string `json:"node_id"`
+	JobID    string `json:"job_id"`
+	Type     string `json:"type"`
+	Payload  string `json:"payload"`
+	ServerTS int64  `json:"server_ts"`
+	AgentSeq *int64 `json:"agent_seq"`
+	ElapsedS *int64 `json:"elapsed_s"`
+	Gap      bool   `json:"gap"`
 }

@@ -19,6 +19,7 @@ type Server struct {
 	pools    *pools.Service
 	jobs     *jobs.Service
 	datasets *datasets.Service
+	uploads  *datasets.UploadManager
 	hub      *ws.Hub
 	LogDir   string
 }
@@ -27,6 +28,8 @@ func New(st store.Store, authSvc *auth.Service, poolsSvc *pools.Service,
 	jobsSvc *jobs.Service, datasetsSvc *datasets.Service, hub *ws.Hub) *Server {
 	return &Server{st: st, auth: authSvc, pools: poolsSvc, jobs: jobsSvc, datasets: datasetsSvc, hub: hub}
 }
+
+func (s *Server) SetUploads(m *datasets.UploadManager) { s.uploads = m }
 
 func (s *Server) Router(static http.Handler) http.Handler {
 	mux := http.NewServeMux()
@@ -47,6 +50,8 @@ func (s *Server) Router(static http.Handler) http.Handler {
 	authed.HandleFunc("GET /api/jobs/{id}/events", s.handleJobEvents)
 	authed.HandleFunc("GET /api/jobs/{id}/logs", s.handleJobLogs)
 	authed.HandleFunc("GET /api/jobs/{id}/logs/stream", s.handleJobLogsStream)
+	authed.HandleFunc("GET /api/jobs/{id}/artifacts", s.handleJobArtifacts)
+	authed.HandleFunc("GET /api/datasets/{id}/download", s.handleDatasetDownload)
 	authed.HandleFunc("GET /api/nodes", s.handleListNodes)
 	authed.HandleFunc("GET /api/nodes/{id}", s.handleGetNode)
 	authed.HandleFunc("GET /api/datasets", s.handleListDatasets)
@@ -71,6 +76,10 @@ func (s *Server) Router(static http.Handler) http.Handler {
 	admin.HandleFunc("POST /api/nodes/{id}/provision", s.handleProvision)
 	admin.HandleFunc("POST /api/datasets", s.handleUploadDataset)
 	admin.HandleFunc("DELETE /api/datasets/{id}", s.handleDeleteDataset)
+	admin.HandleFunc("POST /api/datasets/uploads", s.handleUploadInit)
+	admin.HandleFunc("GET /api/datasets/uploads/{id}", s.handleUploadGet)
+	admin.HandleFunc("PUT /api/datasets/uploads/{id}/chunk", s.handleUploadChunk)
+	admin.HandleFunc("POST /api/datasets/uploads/{id}/complete", s.handleUploadComplete)
 
 	mux.Handle("/api/", s.auth.RequireAuth(authed))
 	mux.Handle("/api/users", s.auth.RequireAdmin(admin))
@@ -89,6 +98,10 @@ func (s *Server) Router(static http.Handler) http.Handler {
 	mux.Handle("POST /api/nodes/{id}/provision", s.auth.RequireAdmin(admin))
 	mux.Handle("POST /api/datasets", s.auth.RequireAdmin(admin))
 	mux.Handle("DELETE /api/datasets/{id}", s.auth.RequireAdmin(admin))
+	mux.Handle("POST /api/datasets/uploads", s.auth.RequireAdmin(admin))
+	mux.Handle("GET /api/datasets/uploads/{id}", s.auth.RequireAdmin(admin))
+	mux.Handle("PUT /api/datasets/uploads/{id}/chunk", s.auth.RequireAdmin(admin))
+	mux.Handle("POST /api/datasets/uploads/{id}/complete", s.auth.RequireAdmin(admin))
 
 	mux.HandleFunc("GET /datasets/{id}", s.handleAgentDatasetDownload)
 	mux.HandleFunc("PUT /artifacts/{job_id}/{path...}", s.handleAgentArtifactUpload)
@@ -120,14 +133,15 @@ func decodeJSON(r *http.Request, v any) error {
 
 func statusOf(err error) int {
 	switch {
-	case errors.Is(err, store.ErrNotFound):
+	case errors.Is(err, store.ErrNotFound), errors.Is(err, datasets.ErrUploadNotFound):
 		return http.StatusNotFound
-	case errors.Is(err, store.ErrConflict):
+	case errors.Is(err, store.ErrConflict), errors.Is(err, datasets.ErrUploadOffset):
 		return http.StatusConflict
 	case errors.Is(err, auth.ErrForbidden), errors.Is(err, pools.ErrForbidden),
 		errors.Is(err, jobs.ErrForbidden), errors.Is(err, datasets.ErrForbidden):
 		return http.StatusForbidden
-	case errors.Is(err, jobs.ErrBadRequest), errors.Is(err, datasets.ErrBadKind):
+	case errors.Is(err, jobs.ErrBadRequest), errors.Is(err, datasets.ErrBadKind),
+		errors.Is(err, datasets.ErrUploadSize):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError

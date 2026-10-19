@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"path"
 
 	"github.com/Next-Lab-AI/next-trainer-enterprise/protocol"
 	"github.com/Next-Lab-AI/next-trainer-enterprise/server/internal/auth"
@@ -99,6 +100,8 @@ type datasetOut struct {
 	CreatedAt int64  `json:"created_at"`
 	JobID     string `json:"job_id"`
 	DeletedAt *int64 `json:"deleted_at"`
+	EncAlgo   string `json:"enc_algo,omitempty"`
+	EncKey    string `json:"enc_key,omitempty"`
 }
 
 func datasetDTO(d *store.Dataset) datasetOut {
@@ -106,10 +109,12 @@ func datasetDTO(d *store.Dataset) datasetOut {
 		DatasetID: d.DatasetID, Name: d.Name, Version: d.Version, Kind: d.Kind,
 		Backend: d.Backend, URI: d.URI, SHA256: d.SHA256, SizeBytes: d.SizeBytes,
 		CreatedBy: d.CreatedBy, CreatedAt: d.CreatedAt, JobID: d.JobID, DeletedAt: d.DeletedAt,
+		EncAlgo: d.EncAlgo, EncKey: d.EncKey,
 	}
 }
 
 func (s *Server) handleListDatasets(w http.ResponseWriter, r *http.Request) {
+	kind := r.URL.Query().Get("kind")
 	ds, err := s.st.Datasets().List(r.Context(), false)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err)
@@ -117,6 +122,9 @@ func (s *Server) handleListDatasets(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]datasetOut, 0, len(ds))
 	for _, d := range ds {
+		if kind != "" && d.Kind != kind {
+			continue
+		}
 		out = append(out, datasetDTO(d))
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -140,12 +148,63 @@ func (s *Server) handleUploadDataset(w http.ResponseWriter, r *http.Request) {
 	u := auth.UserFrom(r.Context())
 	d, err := s.datasets.Upload(r.Context(), u.ID,
 		firstNonEmpty(r.FormValue("name"), header.Filename),
-		r.FormValue("version"), kind, r.FormValue("backend"), header.Filename, file)
+		r.FormValue("version"), kind, r.FormValue("backend"), header.Filename,
+		r.FormValue("enc_algo"), r.FormValue("enc_key"), file)
 	if err != nil {
 		writeErr(w, statusOf(err), err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, datasetDTO(d))
+}
+
+func (s *Server) handleJobArtifacts(w http.ResponseWriter, r *http.Request) {
+	jobID := r.PathValue("id")
+	job, err := s.st.Jobs().GetJob(r.Context(), jobID)
+	if err != nil {
+		writeErr(w, statusOf(err), err)
+		return
+	}
+	u := auth.UserFrom(r.Context())
+	if u.Role != store.RoleAdmin && job.UserID != u.ID {
+		writeErr(w, http.StatusForbidden, errors.New("forbidden"))
+		return
+	}
+	ds, err := s.datasets.ListArtifacts(r.Context(), jobID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err)
+		return
+	}
+	out := make([]datasetOut, 0, len(ds))
+	for _, d := range ds {
+		if d.Kind == store.DatasetKindArtifact {
+			out = append(out, datasetDTO(d))
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) handleDatasetDownload(w http.ResponseWriter, r *http.Request) {
+	u := auth.UserFrom(r.Context())
+	datasetID := r.PathValue("id")
+	ok, err := s.datasets.CanUserDownload(r.Context(), u, datasetID)
+	if err != nil {
+		writeErr(w, statusOf(err), err)
+		return
+	}
+	if !ok {
+		writeErr(w, http.StatusForbidden, datasets.ErrForbidden)
+		return
+	}
+	rc, d, err := s.datasets.Download(r.Context(), datasetID)
+	if err != nil {
+		writeErr(w, statusOf(err), err)
+		return
+	}
+	defer rc.Close()
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+path.Base(d.URI)+"\"")
+	w.Header().Set("X-SHA256", d.SHA256)
+	io.Copy(w, rc)
 }
 
 func (s *Server) handleDeleteDataset(w http.ResponseWriter, r *http.Request) {

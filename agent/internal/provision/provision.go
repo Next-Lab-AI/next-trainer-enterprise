@@ -186,14 +186,13 @@ func (p *Provisioner) Provision(ctx context.Context, cmd protocol.Provision) (re
 	}
 
 	engineDir := p.EngineDir(cmd.Engine, cmd.Version)
+	// 供应链安全：引擎代码只允许来自本机预置的 vendor 包（engines/ 目录，
+	// 由交付介质部署），agent 绝不按 server 指令去拉取可执行内容。
+	if cmd.Package.URI != "" {
+		return false, "", fmt.Errorf("provision: remote engine package forbidden (uri %q); stage the vendor zip under %s and restart the agent", cmd.Package.URI, filepath.Join(p.root, "engines"))
+	}
 	if _, err := os.Stat(filepath.Join(engineDir, "engine.toml")); err != nil {
-		if cmd.Package.URI == "" {
-			return false, "", fmt.Errorf("provision: engine source missing at %s and no package asset", engineDir)
-		}
-		logger.Log("info", "fetching engine package", map[string]any{"uri": cmd.Package.URI})
-		if err := p.fetchEnginePackage(ctx, cmd.Package, engineDir); err != nil {
-			return false, "", err
-		}
+		return false, "", fmt.Errorf("provision: engine %s %s not staged at %s; drop the vendor zip into %s and restart the agent", cmd.Engine, cmd.Version, engineDir, filepath.Join(p.root, "engines"))
 	}
 	m, manifestRaw, err := LoadManifest(engineDir)
 	if err != nil {
@@ -251,17 +250,6 @@ func (p *Provisioner) Provision(ctx context.Context, cmd protocol.Provision) (re
 		return false, envDir, fmt.Errorf("provision: audit not ok: %s", strings.Join(audit.Errors, "; "))
 	}
 	return true, envDir, nil
-}
-
-func (p *Provisioner) fetchEnginePackage(ctx context.Context, pkg protocol.Asset, engineDir string) error {
-	cachePath, _, err := p.fetcher.Fetch(ctx, pkg)
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(engineDir, 0o755); err != nil {
-		return err
-	}
-	return extractTarGz(cachePath, engineDir)
 }
 
 func (p *Provisioner) Preflight(ctx context.Context, engineDir, envDir, jobDir string, logger LineSink) error {

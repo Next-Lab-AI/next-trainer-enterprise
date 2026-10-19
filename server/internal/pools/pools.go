@@ -66,6 +66,9 @@ func (s *Service) VisiblePools(ctx context.Context, user *store.User) ([]*store.
 }
 
 func (s *Service) CheckSubmit(ctx context.Context, user *store.User, poolID string, datasetIDs []string) error {
+	if user.Role == store.RoleAdmin {
+		return nil
+	}
 	ok, err := s.CanSubmit(ctx, user, poolID)
 	if err != nil {
 		return err

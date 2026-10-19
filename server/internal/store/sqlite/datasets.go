@@ -9,22 +9,24 @@ import (
 
 type datasetsRepo struct{ q querier }
 
-const datasetCols = "dataset_id, name, version, kind, backend, uri, sha256, size_bytes, created_by, created_at, job_id, deleted_at"
+const datasetCols = "dataset_id, name, version, kind, backend, uri, sha256, size_bytes, created_by, created_at, job_id, deleted_at, enc_algo, enc_key"
 
 func scanDataset(row interface{ Scan(...any) error }) (*store.Dataset, error) {
 	var d store.Dataset
 	var del sql.NullInt64
 	err := row.Scan(&d.DatasetID, &d.Name, &d.Version, &d.Kind, &d.Backend, &d.URI,
-		&d.SHA256, &d.SizeBytes, &d.CreatedBy, &d.CreatedAt, &d.JobID, &del)
+		&d.SHA256, &d.SizeBytes, &d.CreatedBy, &d.CreatedAt, &d.JobID, &del,
+		&d.EncAlgo, &d.EncKey)
 	d.DeletedAt = intPtr(del)
 	return &d, err
 }
 
 func (r *datasetsRepo) Create(ctx context.Context, d *store.Dataset) error {
 	_, err := r.q.ExecContext(ctx,
-		`INSERT INTO datasets (`+datasetCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+		`INSERT INTO datasets (`+datasetCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		d.DatasetID, d.Name, d.Version, d.Kind, d.Backend, d.URI,
-		d.SHA256, d.SizeBytes, d.CreatedBy, d.CreatedAt, d.JobID, nullInt(d.DeletedAt))
+		d.SHA256, d.SizeBytes, d.CreatedBy, d.CreatedAt, d.JobID, nullInt(d.DeletedAt),
+		d.EncAlgo, d.EncKey)
 	return conflictOr(err)
 }
 
@@ -44,6 +46,24 @@ func (r *datasetsRepo) List(ctx context.Context, includeDeleted bool) ([]*store.
 	}
 	q += ` ORDER BY created_at DESC`
 	rows, err := r.q.QueryContext(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*store.Dataset
+	for rows.Next() {
+		d, err := scanDataset(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
+func (r *datasetsRepo) ListByJob(ctx context.Context, jobID string) ([]*store.Dataset, error) {
+	rows, err := r.q.QueryContext(ctx,
+		`SELECT `+datasetCols+` FROM datasets WHERE job_id=? AND deleted_at IS NULL ORDER BY created_at ASC`, jobID)
 	if err != nil {
 		return nil, err
 	}

@@ -98,6 +98,8 @@ type Dataset struct {
 	CreatedAt int64
 	JobID     string
 	DeletedAt *int64
+	EncAlgo   string
+	EncKey    string
 }
 
 type Job struct {
@@ -198,6 +200,7 @@ type Datasets interface {
 	Create(ctx context.Context, d *Dataset) error
 	Get(ctx context.Context, datasetID string) (*Dataset, error)
 	List(ctx context.Context, includeDeleted bool) ([]*Dataset, error)
+	ListByJob(ctx context.Context, jobID string) ([]*Dataset, error)
 	SoftDelete(ctx context.Context, datasetID string, deletedAt int64) error
 }
 

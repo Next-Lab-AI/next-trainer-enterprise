@@ -96,6 +96,8 @@ export interface Dataset {
   created_at: number
   job_id: string
   deleted_at: number | null
+  enc_algo?: string
+  enc_key?: string
 }
 
 export interface AccessTokenInfo {

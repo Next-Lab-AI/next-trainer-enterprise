@@ -11,6 +11,7 @@ const JobsPage = () => import("./pages/JobsPage.vue")
 const JobDetailPage = () => import("./pages/JobDetailPage.vue")
 const JobSubmitPage = () => import("./pages/JobSubmitPage.vue")
 const DatasetsPage = () => import("./pages/DatasetsPage.vue")
+const ArtifactsPage = () => import("./pages/ArtifactsPage.vue")
 const AdminUsersPage = () => import("./pages/AdminUsersPage.vue")
 const AdminPoolsPage = () => import("./pages/AdminPoolsPage.vue")
 const NotFoundPage = () => import("./pages/NotFoundPage.vue")
@@ -24,6 +25,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/jobs/submit", name: "job-submit", component: JobSubmitPage, meta: { titleKey: "nav.submitJob" } },
   { path: "/jobs/:id", name: "job-detail", component: JobDetailPage, meta: { titleKey: "jobs.detail" } },
   { path: "/datasets", name: "datasets", component: DatasetsPage, meta: { titleKey: "nav.datasets" } },
+  { path: "/artifacts", name: "artifacts", component: ArtifactsPage, meta: { titleKey: "nav.artifacts" } },
   { path: "/admin/users", name: "admin-users", component: AdminUsersPage, meta: { titleKey: "nav.adminUsers" } },
   { path: "/admin/pools", name: "admin-pools", component: AdminPoolsPage, meta: { titleKey: "nav.adminPools" } },
   { path: "/:pathMatch(.*)*", component: NotFoundPage, meta: { titleKey: "notFound.title", public: true } },

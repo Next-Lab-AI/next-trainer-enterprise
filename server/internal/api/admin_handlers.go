@@ -218,8 +218,21 @@ func (s *Server) handleEnvGC(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleProvision(w http.ResponseWriter, r *http.Request) {
 	var req protocol.Provision
-	if err := decodeJSON(r, &req); err != nil || req.Engine == "" || req.Package.URI == "" {
-		writeErr(w, http.StatusBadRequest, errors.New("engine and package.uri required"))
+	if err := decodeJSON(r, &req); err != nil || req.Engine == "" || req.Version == "" {
+		writeErr(w, http.StatusBadRequest, errors.New("engine and version required"))
+		return
+	}
+	// 供应链安全：引擎包只允许 agent 本地预置的 vendor 包，server 不下发 URI
+	req.Package = protocol.Asset{}
+	staged := false
+	for _, e := range s.hub.Engines(r.PathValue("id")) {
+		if e.Name == req.Engine && e.Version == req.Version {
+			staged = true
+			break
+		}
+	}
+	if !staged {
+		writeErr(w, http.StatusBadRequest, errors.New("engine not staged on node; deploy the vendor zip to the node's engines/ dir first"))
 		return
 	}
 	u := auth.UserFrom(r.Context())

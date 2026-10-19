@@ -64,7 +64,9 @@ func (f *Fetcher) UploadArtifact(ctx context.Context, jobID, localPath, relPath 
 		return err
 	}
 	u := *base
-	u.Path = path.Join(base.Path, "artifacts", jobID, relPath)
+	u.Path = path.Join("/artifacts", jobID, relPath)
+	u.RawPath = ""
+	u.RawQuery = ""
 
 	fh, err := os.Open(localPath)
 	if err != nil {

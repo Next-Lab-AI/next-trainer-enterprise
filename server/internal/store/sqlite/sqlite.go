@@ -12,9 +12,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const schemaVersion = 3
+const schemaVersion = 4
 
-var migrations = []string{schemaV1, migrationV2, migrationV3}
+var migrations = []string{schemaV1, migrationV2, migrationV3, migrationV4}
 
 const migrationV2 = `
 CREATE UNIQUE INDEX IF NOT EXISTS idx_events_agent_seq
@@ -23,6 +23,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_events_agent_seq
 
 const migrationV3 = `
 ALTER TABLE jobs ADD COLUMN request TEXT NOT NULL DEFAULT '{}';
+`
+
+const migrationV4 = `
+ALTER TABLE datasets ADD COLUMN enc_algo TEXT NOT NULL DEFAULT '';
+ALTER TABLE datasets ADD COLUMN enc_key TEXT NOT NULL DEFAULT '';
 `
 
 const schemaV1 = `
